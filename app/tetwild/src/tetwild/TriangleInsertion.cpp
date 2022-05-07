@@ -63,7 +63,10 @@ void tetwild::TetWild::init_from_delaunay_box_mesh(
 
     ///delaunay
     auto tets = wmtk::delaunay3D_conn(points);
-    wmtk::logger().info("tets.size() {}", tets.size());
+    wmtk::logger().info(
+        "after delauney tets.size() {}  points.size() {}",
+        tets.size(),
+        points.size());
 
     // conn
     init(points.size(), tets);
@@ -209,7 +212,7 @@ void tetwild::TetWild::insert_triangles_to_mesh(
     }
 
     for (int i = 0; i < NUM_THREADS; i++) {
-        wmtk::logger().debug("{}: {}", i, insertion_queues[i].size());
+        wmtk::logger().info("insertion queue {}: {}", i, insertion_queues[i].size());
     }
 
     tbb::task_arena arena(NUM_THREADS);
@@ -293,7 +296,7 @@ void tetwild::TetWild::insert_triangles_to_mesh(
     });
     arena.execute([&] { tg.wait(); });
 
-    wmtk::logger().info("expired size: {}", expired_queue.size());
+    wmtk::logger().info("retry insert 5 times expired size: {}", expired_queue.size());
 
     auto check_acquire = [](const auto&) { return true; };
 

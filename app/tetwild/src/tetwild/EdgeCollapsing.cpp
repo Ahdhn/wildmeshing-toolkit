@@ -63,7 +63,23 @@ void tetwild::TetWild::collapse_all_edges(bool is_limit_length)
             collect_failure_ops.emplace_back(op, t);
         };
         // Execute!!
+          auto check_bnd = [&](){
+            std::set<std::pair<size_t, size_t>> bnds;
+            auto fids = get_faces_by_condition([](auto& at) { return at.m_is_surface_fs; });
+            for (auto fi: fids) {
+                for (auto j=0; j<3; j++) {
+                    auto a = fi[j], b = fi[(j+1)%3];
+                    if (a>b)  std::swap(a,b);
+                    auto [it, happened] = bnds.emplace(a,b);
+                    if (!happened) bnds.erase(it);
+                }
+            }
+            wmtk::logger().critical("bnds {}", bnds);
+            if (bnds.size() > 0) exit(1);
+        };
+        
         do {
+        check_bnd();
             count_success.store(0, std::memory_order_release);
             wmtk::logger().info("Prepare to collapse {}", collect_all_ops.size());
             executor(*this, collect_all_ops);
@@ -74,6 +90,7 @@ void tetwild::TetWild::collapse_all_edges(bool is_limit_length)
             collect_all_ops.clear();
             for (auto& item : collect_failure_ops) collect_all_ops.emplace_back(item);
             collect_failure_ops.clear();
+        check_bnd();
         } while (count_success.load(std::memory_order_acquire) > 0);
     };
     if (NUM_THREADS > 0) {
@@ -94,8 +111,10 @@ void tetwild::TetWild::collapse_all_edges(bool is_limit_length)
     }
 }
 
+std::set<int> changed_fids;
 bool tetwild::TetWild::collapse_edge_before(const Tuple& loc) // input is an edge
 {
+    changed_fids.clear();
     collapse_cache.local().changed_faces.clear();
     collapse_cache.local().changed_tids.clear();
     collapse_cache.local().surface_faces.clear();
@@ -134,10 +153,23 @@ bool tetwild::TetWild::collapse_edge_before(const Tuple& loc) // input is an edg
                 break;
             }
         }
-        if (is_isolated) m_vertex_attribute[v1_id].m_is_on_surface = false;
+        if (is_isolated) {
+            wmtk::logger().critical("Isolated Possible???");
+            m_vertex_attribute[v1_id].m_is_on_surface = false;
+        }
+        if (!m_vertex_attribute[v2_id].m_is_on_surface) {
+            // we do not collapse from surface to interior
+            return false;
+        }
+        if (!is_edge_on_surface(loc))
+            return false;
+        return false;
     }
+
+    // 
     // surface
     if (collapse_cache.local().edge_length > 0 && m_vertex_attribute[v1_id].m_is_on_surface) {
+        // remove v1 only if v2 is also in the surface.
         if (!m_vertex_attribute[v2_id].m_is_on_surface &&
             m_envelope.is_outside(m_vertex_attribute[v2_id].m_posf))
             return false;
@@ -181,6 +213,8 @@ bool tetwild::TetWild::collapse_edge_before(const Tuple& loc) // input is an edg
         f_attr.merge(m_face_attribute[global_fid2]);
         collapse_cache.local().changed_faces.push_back(std::make_pair(f_attr, f_vids));
 
+        changed_fids.insert(global_fid1);
+        changed_fids.insert(global_fid2);
         //        wmtk::vector_unique(collapse_cache.local().changed_faces, comp, is_equal);
     }
 
@@ -238,7 +272,7 @@ bool tetwild::TetWild::collapse_edge_after(const Tuple& loc)
     std::vector<double> qs;
     for (size_t tid : collapse_cache.local().changed_tids) {
         auto tet = tuple_from_tet(tid);
-        if (is_inverted(tet)) return false;
+        // if (is_inverted(tet)) return false;
         double q = get_quality(tet);
         if (q > collapse_cache.local().max_energy) {
             return false;
@@ -271,6 +305,9 @@ bool tetwild::TetWild::collapse_edge_after(const Tuple& loc)
         m_vertex_attribute[v1_id].m_is_on_surface || m_vertex_attribute[v2_id].m_is_on_surface;
     // no need to update on_bbox_faces
     // face attr
+    for (auto f: changed_fids) {
+        m_face_attribute[f].reset();
+    }
     for (auto& info : collapse_cache.local().changed_faces) {
         auto& f_attr = info.first;
         auto& old_vids = info.second;
