@@ -411,6 +411,10 @@ std::array<wmtk::TetMesh::Tuple, 6> wmtk::TetMesh::tet_edges(const Tuple& t) con
     return es;
 }
 
+std::vector<size_t> wmtk::TetMesh::get_one_ring_tids_for_vertex(const Tuple& t) const
+{
+    return m_vertex_connectivity[t.m_global_vid].m_conn_tets;
+}
 std::vector<wmtk::TetMesh::Tuple> wmtk::TetMesh::get_one_ring_tets_for_vertex(const Tuple& t) const
 {
     std::vector<Tuple> tets;
