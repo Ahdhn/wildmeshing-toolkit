@@ -17,6 +17,7 @@ target_link_libraries(tests_wmtk PUBLIC
     wmtk::toolkit
     wmtk::data
     Catch2::Catch2
+    gmp::gmp
 )
 wmtk_copy_dll(tests_wmtk)
 
