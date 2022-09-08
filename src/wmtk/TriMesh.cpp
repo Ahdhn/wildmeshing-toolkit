@@ -1031,12 +1031,15 @@ bool wmtk::TriMesh::check_link_condition(const Tuple& edge) const
 
 int TriMesh::release_vertex_mutex_in_stack()
 {
+    igl::Timer timer;
+    timer.start();
     int num_released = 0;
     for (int i = mutex_release_stack.local().size() - 1; i >= 0; i--) {
         unlock_vertex_mutex(mutex_release_stack.local()[i]);
         num_released++;
     }
     mutex_release_stack.local().clear();
+    unlock_cost += timer.getElapsedTimeInMicroSec();
     return num_released;
 }
 
@@ -1063,6 +1066,8 @@ bool TriMesh::try_set_vertex_mutex_two_ring(const Tuple& v, int threadid)
 
 bool TriMesh::try_set_edge_mutex_two_ring(const Tuple& e, int threadid)
 {
+    // igl::Timer timer;
+    // timer.start();
     Tuple v1 = e;
     bool release_flag = false;
 
@@ -1080,6 +1085,7 @@ bool TriMesh::try_set_edge_mutex_two_ring(const Tuple& e, int threadid)
     }
     if (release_flag) {
         release_vertex_mutex_in_stack();
+        // lock_cost += timer.getElapsedTimeInMicroSec();
         return false;
     }
 
@@ -1097,6 +1103,7 @@ bool TriMesh::try_set_edge_mutex_two_ring(const Tuple& e, int threadid)
     }
     if (release_flag) {
         release_vertex_mutex_in_stack();
+        // lock_cost += timer.getElapsedTimeInMicroSec();
         return false;
     }
 
@@ -1105,6 +1112,7 @@ bool TriMesh::try_set_edge_mutex_two_ring(const Tuple& e, int threadid)
 
     if (release_flag) {
         release_vertex_mutex_in_stack();
+        // lock_cost += timer.getElapsedTimeInMicroSec();
         return false;
     }
 
@@ -1113,9 +1121,11 @@ bool TriMesh::try_set_edge_mutex_two_ring(const Tuple& e, int threadid)
 
     if (release_flag) {
         release_vertex_mutex_in_stack();
+        // lock_cost += timer.getElapsedTimeInMicroSec();
         return false;
     }
 
+    // lock_cost += timer.getElapsedTimeInMicroSec();
     return true;
 }
 

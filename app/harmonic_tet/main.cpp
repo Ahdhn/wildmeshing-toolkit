@@ -125,6 +125,16 @@ auto process_points = [&args = args]() {
     // auto [E1, cnt1] = stats(har_tet);
     // wmtk::logger().info("E {} -> {} cnt {} -> {}", E0, E1, cnt0, cnt1);
     har_tet.output_mesh(output);
+
+    // for break down 
+    std::cout<<"try count: "<<har_tet.try_lock_count<<std::endl;
+    std::cout<<"success count: "<<har_tet.success_lock_count<<std::endl;
+    std::cout<<"fail count: "<<har_tet.fail_lock_count<<std::endl;
+    // std::cout<<"lock cost: "<<har_tet.lock_cost/1000000.0<<std::endl;
+    std::cout<<"assign cost: "<<har_tet.vertex_attrs.assign_cost/1000000.0<<std::endl;
+    std::cout<<"assign count: "<<har_tet.vertex_attrs.assign_count<<std::endl;
+    std::cout<<"rollback cost: "<<har_tet.vertex_attrs.rollback_cost/1000000.0<<std::endl;
+    std::cout<<"rollback count: "<<har_tet.vertex_attrs.rollback_count<<std::endl;
 };
 
 int main(int argc, char** argv)
@@ -141,5 +151,7 @@ int main(int argc, char** argv)
         process_points();
     else
         process_mesh();
+
+    
     return 0;
 }

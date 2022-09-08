@@ -13,6 +13,9 @@
 #include <optional>
 #include <vector>
 
+#include <igl/Timer.h>
+#include <atomic>
+
 namespace wmtk {
 /**
  * @brief serving as buffers for attributes data that can be modified by operations
@@ -48,10 +51,22 @@ struct AttributeCollection : public AbstractAttributeContainer
         // TODO: in Concurrent, vertex partition id, vertex mutex should be part of attribute
     }
 
+    public:
+    std::atomic_ullong assign_cost = 0;
+    std::atomic_ullong rollback_cost = 0;
+    std::atomic_int assign_count = 0;
+    std::atomic_int rollback_count = 0;
+
     bool assign(size_t to, T&& val) // always use this in OP_after
     {
+        assign_count++;
         m_attributes[to] = val;
+        // time
+        igl::Timer timer;
+        timer.start();
         if (recording.local()) m_rollback_list.local()[to] = val;
+        double time  = timer.getElapsedTimeInMicroSec();
+        assign_cost += time;
         // TODO: are locks necessary? not now.
         return true;
     }
@@ -61,10 +76,16 @@ struct AttributeCollection : public AbstractAttributeContainer
      */
     void rollback() override
     {
+        // time
+        rollback_count++;
+        igl::Timer timer;
+        timer.start();
         for (auto& [i, v] : m_rollback_list.local()) {
             m_attributes[i] = std::move(v);
         }
         end_protect();
+        double time  = timer.getElapsedTimeInMicroSec();
+        rollback_cost += time;
     }
     /**
      * @brief clean local buffers for attribute, and start recording

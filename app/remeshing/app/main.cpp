@@ -111,5 +111,15 @@ int main(int argc, char** argv)
         run_remeshing(input_path, len, output, m, itrs, bnd_output);
     }
 
+    // for break down 
+    std::cout<<"try count: "<<m.try_lock_count<<std::endl;
+    std::cout<<"success count: "<<m.success_lock_count<<std::endl;
+    std::cout<<"fail count: "<<m.fail_lock_count<<std::endl;
+    // std::cout<<"lock cost: "<<m.lock_cost/1000000.0<<std::endl;
+    std::cout<<"assign cost: "<<m.vertex_attrs.assign_cost/1000000.0<<std::endl;
+    std::cout<<"assign count: "<<m.vertex_attrs.assign_count<<std::endl;
+    std::cout<<"rollback cost: "<<m.vertex_attrs.rollback_cost/1000000.0<<std::endl;
+    std::cout<<"rollback count: "<<m.vertex_attrs.rollback_count<<std::endl;
+
     return 0;
 }

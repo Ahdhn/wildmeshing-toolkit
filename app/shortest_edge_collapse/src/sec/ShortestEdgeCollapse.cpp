@@ -184,5 +184,6 @@ bool ShortestEdgeCollapse::collapse_shortest(int target_vert_number)
         auto executor = wmtk::ExecutePass<ShortestEdgeCollapse, ExecutionPolicy::kSeq>();
         setup_and_execute(executor);
     }
+
     return true;
 }

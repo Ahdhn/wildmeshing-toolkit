@@ -7,6 +7,7 @@
 
 #include <Tracy.hpp>
 #include <limits>
+#include <atomic>
 
 namespace wmtk {
 /**
@@ -16,6 +17,12 @@ namespace wmtk {
 class ConcurrentTetMesh : public TetMesh
 {
 public:
+
+    // for break down only
+    std::atomic_int try_lock_count = 0;
+    std::atomic<int> success_lock_count = 0;
+    std::atomic<int> fail_lock_count = 0;
+
     class VertexMutex
     {
         tbb::spin_mutex mutex;
@@ -42,14 +49,40 @@ private:
 
     bool try_set_vertex_mutex(const Tuple& v, int threadid)
     {
+        // original
+        // bool got = m_vertex_mutex[v.vid(*this)].trylock();
+        // if (got) m_vertex_mutex[v.vid(*this)].set_owner(threadid);
+        // return got;
+
+        // for break down only
+        try_lock_count++;
         bool got = m_vertex_mutex[v.vid(*this)].trylock();
-        if (got) m_vertex_mutex[v.vid(*this)].set_owner(threadid);
+        if (got) {
+            m_vertex_mutex[v.vid(*this)].set_owner(threadid);
+            success_lock_count++;
+        }
+        else{
+            fail_lock_count++;
+        }
         return got;
     }
     bool try_set_vertex_mutex(size_t vid, int threadid)
     {
+        // original
+        // bool got = m_vertex_mutex[vid].trylock();
+        // if (got) m_vertex_mutex[vid].set_owner(threadid);
+        // return got;
+
+        // for break down only
+        try_lock_count++;
         bool got = m_vertex_mutex[vid].trylock();
-        if (got) m_vertex_mutex[vid].set_owner(threadid);
+        if (got){
+            m_vertex_mutex[vid].set_owner(threadid);
+            success_lock_count++;
+        }
+        else{
+            fail_lock_count++;
+        }
         return got;
     }
 
