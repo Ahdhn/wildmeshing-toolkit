@@ -8,6 +8,7 @@ option(WMTK_APP_UNIFORM_REMESH "uniform remesh for surfaces" ON)
 option(WMTK_APP_SEC "surface shortest edge collapse" ON)
 option(WMTK_APP_QSLIM "surface qslim simplification" ON)
 option(WMTK_APP_UNIT_TESTS "unit tests for applications" ON)
+option(WMTK_APP_DEF "Delaunay edge flip" ON)
 
 add_subdirectory(interior_tet_opt)
 
@@ -33,6 +34,10 @@ endif()
 
 if(WMTK_APP_QSLIM)
     add_subdirectory(qslim)
+endif()
+
+if(WMTK_APP_DEF)
+    add_subdirectory(delaunay_edge_flip)
 endif()
 
 # ###############################################################################
