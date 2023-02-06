@@ -41,6 +41,11 @@ public:
         int num_threads = 1);
 
     ~DelaunayEdgeFlip() override = default;
+
+    bool invariants(const std::vector<Tuple>& new_tris) override;
+
+    bool swap_edge_before(const Tuple& t) override;
+    bool swap_edge_after(const Tuple& t) override;
 };
 
 } // namespace app::def

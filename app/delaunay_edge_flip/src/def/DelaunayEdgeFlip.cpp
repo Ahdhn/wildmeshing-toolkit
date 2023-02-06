@@ -33,3 +33,18 @@ DelaunayEdgeFlip::DelaunayEdgeFlip(
     //SDP, let's go ahead and setup the partitioning here when ready?
     //wmtk::partition_TriMesh(*this, NUM_THREADS);
 }
+
+bool DelaunayEdgeFlip::swap_edge_before(const TriMesh::Tuple& t)
+{
+    return TriMesh::swap_edge_before(t);
+}
+
+bool DelaunayEdgeFlip::swap_edge_after(const TriMesh::Tuple& t)
+{
+    return TriMesh::swap_edge_after(t);
+}
+
+bool DelaunayEdgeFlip::invariants(const std::vector<Tuple>& new_tris)
+{
+    return TriMesh::invariants(new_tris);
+}
