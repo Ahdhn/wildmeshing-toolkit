@@ -28,7 +28,7 @@ int main(int argc, char** argv)
 
     std::string input_mesh_name;
     std::string output_mesh_name = "out.obj";
-    int thread = 1;
+    int num_threads = 1;
 
     CLI::App app{argv[0]};
 
@@ -36,15 +36,46 @@ int main(int argc, char** argv)
     input_option->required();
 
     auto output_option = app.add_option("-o, --output", output_mesh_name, "Output mesh.");
-    app.add_option("-j, --thread", thread, "thread.");
+    app.add_option("-j, --thread", num_threads, "thread.");
 
     CLI11_PARSE(app, argc, argv);
 
+    wmtk::logger().info("def on {}", input_mesh_name);
+    wmtk::logger().info("def output to {}", output_mesh_name);
+
+    // Read in the mesh data
     Eigen::MatrixXd V;
     Eigen::MatrixXi F;
     bool ok = igl::read_triangle_mesh(input_mesh_name, V, F);
     assert(ok != false);
 
+    // Convert the mesh data into a cleaner, more usable format
+    //
+    wmtk::logger().info("Before_vertices#: {} \n Before_tris#: {}", V.rows(), F.rows());
+
+    Eigen::VectorXi SVI, SVJ;
+    Eigen::MatrixXd temp_V = V; // for STL file
+    igl::remove_duplicate_vertices(temp_V, 0, V, SVI, SVJ);
+    for (int i = 0; i < F.rows(); i++)
+        for (int j : {0, 1, 2}) F(i, j) = SVJ[F(i, j)];
+
+    wmtk::logger().info("After_vertices#: {} \n After_tris#: {}", V.rows(), F.rows());
+
+    std::vector<Eigen::Vector3d> v(V.rows());
+    std::vector<std::array<size_t, 3>> tri(F.rows());
+    for (int i = 0; i < V.rows(); i++) {
+        v[i] = V.row(i);
+    }
+    for (int i = 0; i < F.rows(); i++) {
+        for (int j = 0; j < 3; j++) tri[i][j] = (size_t)F(i, j);
+    }
+
+    // Delaunay Edge Flip
+    //
+    DelaunayEdgeFlip def_mesh(v, num_threads);
+
+    // Output
+    //
     ok = igl::write_triangle_mesh(output_mesh_name, V, F);
     assert(ok != false);
 

@@ -25,8 +25,6 @@ namespace app::def {
 struct VertexAttributes
 {
     Eigen::Vector3d pos;
-    // TODO: in fact, partition id should not be vertex attribute,
-    //  it is a fixed marker to distinguish tuple/operations.
     size_t partition_id;
     bool freeze = false;
 };
@@ -35,6 +33,8 @@ class DelaunayEdgeFlip : public wmtk::TriMesh
 {
     using VertAttCol = wmtk::AttributeCollection<VertexAttributes>;
     VertAttCol vertex_attrs;
+
+public:
 
     explicit DelaunayEdgeFlip(
         std::vector<Eigen::Vector3d> _m_vertex_positions,
