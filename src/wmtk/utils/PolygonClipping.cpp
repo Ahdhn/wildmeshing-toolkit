@@ -1,6 +1,7 @@
 #include "PolygonClipping.h"
 
 #include <geogram/numerics/predicates.h>
+#include <tracy/Tracy.hpp>
 
 namespace wmtk {
 
@@ -96,6 +97,7 @@ SmallPolygon2d<7> clip_small_poly_by_aligned_half_plane(
     const SmallPolygon2d<7>& poly,
     HalfPlaneType half_plane)
 {
+    ZoneScoped;
     using namespace GEO;
 
     SmallPolygon2d<7> result(0, 2);
@@ -164,6 +166,7 @@ void clip_polygon_by_half_plane(
     const Eigen::RowVector2d& q2,
     Eigen::MatrixXd& P_out)
 {
+    ZoneScoped;
     using namespace GEO;
     assert(P_in.cols() == 2);
     std::vector<Eigen::RowVector2d> result;
@@ -217,6 +220,7 @@ SmallPolygon2d<7> clip_triangle_by_box(
     const SmallPolygon2d<3>& triangle,
     const Eigen::AlignedBox2d& box)
 {
+    ZoneScoped;
     SmallPolygon2d<7> result = triangle;
 
     AlignedHalfPlane<0, false> h0{box.min().x()};

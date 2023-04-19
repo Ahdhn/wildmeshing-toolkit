@@ -6,6 +6,7 @@
 #include <wmtk/utils/Logger.hpp>
 #include <wmtk/utils/TupleUtils.hpp>
 #include "wmtk/utils/VectorUtils.h"
+#include <tracy/Tracy.hpp>
 
 // clang-format off
 #include <wmtk/utils/DisableWarnings.hpp>
@@ -92,6 +93,7 @@ bool TriMesh::is_boundary_vertex(const TriMesh::Tuple& t) const
 
 void TriMesh::consolidate_mesh()
 {
+    ZoneScoped;
     TriMeshConsolidateOperation op;
     op(*this, TriMesh::Tuple{});
 }

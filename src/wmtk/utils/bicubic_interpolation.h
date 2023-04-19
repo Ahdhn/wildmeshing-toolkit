@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <tracy/Tracy.hpp>
 #include <type_traits>
 #include "autodiff.h"
 enum class WrappingMode { REPEAT, MIRROR_REPEAT, CLAMP_TO_EDGE };

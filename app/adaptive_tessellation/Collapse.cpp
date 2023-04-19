@@ -8,6 +8,7 @@
 #include <wmtk/utils/Logger.hpp>
 #include <wmtk/utils/TriQualityUtils.hpp>
 #include <wmtk/utils/TupleUtils.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <limits>
 #include <optional>
@@ -120,6 +121,8 @@ auto swap_accuracy_cost = [](auto& m, const TriMesh::Tuple& e) {
 
 void AdaptiveTessellation::collapse_all_edges()
 {
+    ZoneScoped;
+
     // collapse is not define for EDGE_QUADRATURE
     // collapse in AREA_QUADRATURE uses 3d edge length
 
@@ -162,6 +165,8 @@ void AdaptiveTessellation::collapse_all_edges()
 }
 bool AdaptiveTessellation::collapse_edge_before(const Tuple& edge_tuple)
 {
+    ZoneScoped;
+
     // check if the two vertices to be split is of the same curve_id
     if (vertex_attrs[edge_tuple.vid(*this)].curve_id !=
         vertex_attrs[edge_tuple.switch_vertex(*this).vid(*this)].curve_id)
@@ -201,6 +206,7 @@ bool AdaptiveTessellation::collapse_edge_before(const Tuple& edge_tuple)
 }
 bool AdaptiveTessellation::collapse_edge_after(const Tuple& edge_tuple)
 {
+    ZoneScoped;
     // check if the both of the 2 vertices are fixed
     // if yes, then collapse is rejected
     if (vertex_attrs[cache.local().v1].fixed && vertex_attrs[cache.local().v2].fixed) return false;

@@ -916,6 +916,7 @@ bool AdaptiveTessellation::is_inverted(const Tuple& loc) const
 
 void AdaptiveTessellation::mesh_improvement(int max_its)
 {
+    ZoneScoped;
     auto start_time = lagrange::get_timestamp();
 
     [[maybe_unused]] igl::Timer timer;

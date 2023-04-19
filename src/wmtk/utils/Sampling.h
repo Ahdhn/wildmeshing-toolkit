@@ -2,6 +2,7 @@
 #include <nanospline/BSplinePatch.h>
 #include <nanospline/arc_length.h>
 #include <Eigen/Core>
+#include <tracy/Tracy.hpp>
 #include "Displacement.h"
 #include "Image.h"
 #include "bicubic_interpolation.h"
@@ -51,6 +52,8 @@ public:
     template <class T>
     T sample_T(T u, T v) const
     {
+        ZoneScoped;
+
         auto w = m_image.width();
         auto h = m_image.height();
         // x, y are between 0 and 1

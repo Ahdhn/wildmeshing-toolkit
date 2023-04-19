@@ -1,6 +1,7 @@
 #include "TriangleQuadrature.h"
 
 #include <Eigen/Geometry>
+#include <tracy/Tracy.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -951,6 +952,7 @@ void TriangleQuadrature::transformed_triangle_quadrature(
     const TriangleVertices& triangle,
     Quadrature& quadr)
 {
+    ZoneScoped;
     reference_triangle_quadrature(order, quadr);
 
     Eigen::Affine2d transform;
@@ -964,6 +966,7 @@ void TriangleQuadrature::transformed_triangle_quadrature(
 
 void TriangleQuadrature::reference_triangle_quadrature(const int order, Quadrature& quadr)
 {
+    ZoneScoped;
     quadr.set_dimension(2);
     get_weight_and_points(order, quadr);
 

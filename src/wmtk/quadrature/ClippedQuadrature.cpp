@@ -3,6 +3,8 @@
 #include <wmtk/utils/PolygonClipping.h>
 #include "TriangleQuadrature.h"
 
+#include <tracy/Tracy.hpp>
+
 namespace wmtk {
 
 void ClippedQuadrature::clipped_triangle_box_quadrature(
@@ -12,6 +14,7 @@ void ClippedQuadrature::clipped_triangle_box_quadrature(
     Quadrature& quadr,
     Quadrature* tmp)
 {
+    ZoneScoped;
 #if 0
     // Naive implementation for testing
     PolygonVertices poly(4, 2);

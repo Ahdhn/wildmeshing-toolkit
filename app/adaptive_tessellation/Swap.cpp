@@ -10,6 +10,7 @@
 #include <wmtk/utils/Logger.hpp>
 #include <wmtk/utils/TriQualityUtils.hpp>
 #include <wmtk/utils/TupleUtils.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <limits>
 #include <optional>
@@ -169,6 +170,8 @@ auto swap_accuracy_cost = [](auto& m, const TriMesh::Tuple& e, const double vale
 
 void AdaptiveTessellation::swap_all_edges()
 {
+    ZoneScoped;
+
     auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
     auto collect_tuples = tbb::concurrent_vector<Tuple>();
 
@@ -221,6 +224,7 @@ void AdaptiveTessellation::swap_all_edges()
 }
 bool AdaptiveTessellation::swap_edge_before(const Tuple& t)
 {
+    ZoneScoped;
 
     if (is_boundary_edge(t)) return false;
     if (is_boundary_vertex(t))
@@ -243,6 +247,7 @@ bool AdaptiveTessellation::swap_edge_before(const Tuple& t)
 }
 bool AdaptiveTessellation::swap_edge_after([[maybe_unused]] const Tuple& t)
 {
+    ZoneScoped;
     // check quality and degenerate
     // auto tris = get_one_ring_tris_for_vertex(t);
 

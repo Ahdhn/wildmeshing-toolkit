@@ -9,6 +9,7 @@
 #include <array>
 #include <wmtk/utils/Logger.hpp>
 #include <wmtk/utils/TriQualityUtils.hpp>
+#include <tracy/Tracy.hpp>
 
 
 #include <limits>
@@ -61,6 +62,7 @@ public:
 
 bool adaptive_tessellation::AdaptiveTessellation::smooth_before(const Tuple& t)
 {
+    ZoneScoped;
     if (vertex_attrs[t.vid(*this)].fixed) return false;
     if (mesh_parameters.m_bnd_freeze && is_boundary_vertex(t)) return false;
     return true;
@@ -68,6 +70,7 @@ bool adaptive_tessellation::AdaptiveTessellation::smooth_before(const Tuple& t)
 
 bool adaptive_tessellation::AdaptiveTessellation::smooth_after(const Tuple& t)
 {
+    ZoneScoped;
     static std::atomic_int cnt = 0;
     wmtk::logger().info("smothing op # {}", cnt);
     // Newton iterations are encapsulated here.
@@ -179,6 +182,7 @@ bool adaptive_tessellation::AdaptiveTessellation::smooth_after(const Tuple& t)
 
 void adaptive_tessellation::AdaptiveTessellation::smooth_all_vertices()
 {
+    ZoneScoped;
     assert(mesh_parameters.m_energy != nullptr);
     wmtk::logger().info("=======smooth==========");
     igl::Timer timer;

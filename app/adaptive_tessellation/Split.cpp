@@ -7,6 +7,7 @@
 #include <wmtk/utils/TupleUtils.hpp>
 #include "AdaptiveTessellation.h"
 #include "wmtk/ExecutionScheduler.hpp"
+#include <tracy/Tracy.hpp>
 
 #include <limits>
 #include <optional>
@@ -28,6 +29,7 @@ auto split_renew = [](auto& m, auto op, auto& tris) {
 
 void AdaptiveTessellation::split_all_edges()
 {
+    ZoneScoped;
     auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
     auto collect_tuples = tbb::concurrent_vector<Tuple>();
 
@@ -122,6 +124,7 @@ void AdaptiveTessellation::split_all_edges()
 }
 bool AdaptiveTessellation::split_edge_before(const Tuple& edge_tuple)
 {
+    ZoneScoped;
     static std::atomic_int cnt = 0;
     if (!TriMesh::split_edge_before(edge_tuple)) return false;
     // write_displaced_obj(
@@ -161,6 +164,7 @@ bool AdaptiveTessellation::split_edge_before(const Tuple& edge_tuple)
 }
 bool AdaptiveTessellation::split_edge_after(const Tuple& edge_tuple)
 {
+    ZoneScoped;
     // adding heuristic decision. If length2 > 4. / 3. * 4. / 3. * m.m_target_l * m.m_target_l always split
     // transform edge length with displacement
     static std::atomic_int success_cnt = 0;
