@@ -72,11 +72,16 @@ int main(int argc, char** argv)
 
     // Delaunay Edge Flip
     //
-    DelaunayEdgeFlip def_mesh(v, num_threads);
+    DelaunayEdgeFlip def_mesh(v, tri, num_threads);
 
-    // Output
-    //
-    ok = igl::write_triangle_mesh(output_mesh_name, V, F);
-    assert(ok != false);
+    igl::Timer timer;
+    timer.start();
 
+    def_mesh.swap_all_edges();
+
+    timer.stop();
+    wmtk::logger().info("***** Delaunay Flip Time *****: {} ms", timer.getElapsedTimeInMilliSec());
+
+    def_mesh.consolidate_mesh();
+    def_mesh.write_triangle_mesh(output_mesh_name);
 }

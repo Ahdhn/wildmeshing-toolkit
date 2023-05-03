@@ -31,13 +31,14 @@ struct VertexAttributes
 
 class DelaunayEdgeFlip : public wmtk::TriMesh
 {
+public:
+
     using VertAttCol = wmtk::AttributeCollection<VertexAttributes>;
     VertAttCol vertex_attrs;
 
-public:
-
     explicit DelaunayEdgeFlip(
         std::vector<Eigen::Vector3d> _m_vertex_positions,
+        const std::vector<std::array<size_t, 3>>& tris,
         int num_threads = 1);
 
     ~DelaunayEdgeFlip() override = default;
@@ -46,6 +47,21 @@ public:
 
     bool swap_edge_before(const Tuple& t) override;
     bool swap_edge_after(const Tuple& t) override;
+
+    // Swap all edges in the mesh
+    void swap_all_edges();
+
+    bool write_triangle_mesh(std::string path);
+
+private:
+    // Use to save positions of an edge before
+    // the edge is flipped.
+    struct PositionInfoCache
+    {
+        Eigen::Vector3d v0p;
+        Eigen::Vector3d v1p;
+    };
+    tbb::enumerable_thread_specific<PositionInfoCache> edge_position_cache;
 };
 
 } // namespace app::def
