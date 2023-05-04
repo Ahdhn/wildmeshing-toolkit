@@ -1,14 +1,18 @@
-#include "DelaunayEdgeFlip.h"
+//
+// Created by Serban Porumbescu on 5/4/23.
+//
+
 #include <set>
+#include <type_traits>
 #include <igl/Timer.h>
 #include <wmtk/ExecutionScheduler.hpp>
 #include <wmtk/utils/TupleUtils.hpp>
 
-using namespace app::def;
-using namespace wmtk;
+namespace app::def {
 
-DelaunayEdgeFlip::DelaunayEdgeFlip(
-    std::vector<Eigen::Vector3d> _m_vertex_positions,
+template <typename Scalar>
+DelaunayEdgeFlip<Scalar>::DelaunayEdgeFlip(
+    std::vector< Eigen::Vector3<Scalar> >_m_vertex_positions,
     const std::vector<std::array<size_t, 3>>& tris,
     int num_threads)
 {
@@ -25,19 +29,18 @@ DelaunayEdgeFlip::DelaunayEdgeFlip(
     wmtk::logger().info("partition_ids: {}", partition_ids.size());
 
     std::set<unsigned long> partition_set;
-    for (auto i = 0; i < _m_vertex_positions.size(); i++)
-    {
+    for (auto i = 0; i < _m_vertex_positions.size(); i++) {
         partition_set.insert(partition_ids[i]);
         vertex_attrs[i] = {_m_vertex_positions[i], partition_ids[i]};
     }
 
-    for(auto pid : partition_set)
-    {
+    for (auto pid : partition_set) {
         wmtk::logger().info("pid: {}\n", pid);
     }
 }
 
-bool DelaunayEdgeFlip::invariants(const std::vector<Tuple>& new_tris)
+template <typename Scalar>
+bool DelaunayEdgeFlip<Scalar>::invariants(const std::vector<Tuple>& new_tris)
 {
     return TriMesh::invariants(new_tris);
 }
@@ -47,7 +50,8 @@ auto edge_locker = [](auto& m, const auto& e, int task_id) {
     return m.try_set_edge_mutex_two_ring(e, task_id);
 };
 
-void DelaunayEdgeFlip::swap_all_edges()
+template <typename Scalar>
+void DelaunayEdgeFlip<Scalar>::swap_all_edges()
 {
     wmtk::logger().info("***** DelaunayEdgeFlip Collecting edges to swap *****");
 
@@ -72,14 +76,6 @@ void DelaunayEdgeFlip::swap_all_edges()
     wmtk::logger().info("***** swap get edges time *****: {} ms", timer.getElapsedTimeInMilliSec());
     wmtk::logger().info("DelaunayEdgeFlip: size for edges to swap is {}", collect_all_ops.size());
 
-    // Prepare the execution environment
-//    auto renew = [](auto& m, auto op, auto& tris) {
-//        auto edges = m.new_edges_after(tris);
-//        auto optup = std::vector<std::pair<std::string, TriMesh::Tuple>>();
-//        for (auto& e : edges) optup.emplace_back(op, e);
-//        return optup;
-//    };
-
     auto setup_and_execute = [&](auto executor) {
         executor.num_threads = NUM_THREADS;
 
@@ -96,17 +92,18 @@ void DelaunayEdgeFlip::swap_all_edges()
 
     if(NUM_THREADS > 1) {
         wmtk::logger().info("DelaunayEdgeFlip NUM_THREADS kPartition {}", NUM_THREADS);
-        auto executor = wmtk::ExecutePass<DelaunayEdgeFlip, ExecutionPolicy::kPartition>();
+        auto executor = wmtk::ExecutePass<DelaunayEdgeFlip, wmtk::ExecutionPolicy::kPartition>();
         executor.lock_vertices = edge_locker;
         setup_and_execute(executor);
     } else {
         wmtk::logger().info("DelaunayEdgeFlip NUM_THREADS kSeq {}", NUM_THREADS);
-        auto executor = wmtk::ExecutePass<DelaunayEdgeFlip, ExecutionPolicy::kSeq>();
+        auto executor = wmtk::ExecutePass<DelaunayEdgeFlip, wmtk::ExecutionPolicy::kSeq>();
         setup_and_execute(executor);
     }
 }
 
-bool DelaunayEdgeFlip::write_triangle_mesh(std::string path)
+template <typename Scalar>
+bool DelaunayEdgeFlip<Scalar>::write_triangle_mesh(std::string path)
 {
     // write the collapsed mesh into a obj and assert the mesh is manifold
     Eigen::MatrixXd V = Eigen::MatrixXd::Zero(vert_capacity(), 3);
@@ -130,7 +127,8 @@ bool DelaunayEdgeFlip::write_triangle_mesh(std::string path)
     return manifold;
 }
 
-bool DelaunayEdgeFlip::swap_edge_before(const Tuple& t)
+template <typename Scalar>
+bool DelaunayEdgeFlip<Scalar>::swap_edge_before(const Tuple& t)
 {
     if (!TriMesh::swap_edge_before(t))
     {
@@ -151,7 +149,8 @@ bool DelaunayEdgeFlip::swap_edge_before(const Tuple& t)
 }
 
 
-bool DelaunayEdgeFlip::swap_edge_after(const TriMesh::Tuple& t)
+template <typename Scalar>
+bool DelaunayEdgeFlip<Scalar>::swap_edge_after(const TriMesh::Tuple& t)
 {
     // Follow from:
     // https://github.com/Ahdhn/GPUDelaunayEdgeFlip/blob/master/GDEF/exclusion_processing.cuh
@@ -185,29 +184,31 @@ bool DelaunayEdgeFlip::swap_edge_after(const TriMesh::Tuple& t)
 
     // find the angle between S, M, Q vertices (i.e., angle at M)
     auto angle_between_three_vertices =
-        [](const Eigen::Vector3d& S,
-           const Eigen::Vector3d& M,
-           const Eigen::Vector3d& Q) {
+        [](const auto& S, const auto& M, const auto& Q) {
+//            using Scalar = typename decltype(S)::Scalar;
+            using Vector3 = Eigen::Vector3<Scalar>;
 
-            Eigen::Vector3d p1      = S - M;
-            Eigen::Vector3d p2      = Q - M;
-            double dot_pro = p1.dot(p2);
+            Vector3 p1 = S - M;
+            Vector3 p2 = Q - M;
+            Scalar dot_pro = p1.dot(p2);
 
-            return acos(dot_pro / (p1.norm() * p2.norm()) );
+            auto acos_helper = [](auto x) {
+                if constexpr (std::is_same_v<std::decay_t<decltype(x)>, float>) {
+                    return std::acosf(x);
+                } else {
+                    return std::acos(x);
+                }
+            };
 
-//        if constexpr (std::is_same_v<T, float>) {
-//            return acosf(dot_pro / (p1.norm() * p2.norm()));
-//        } else {
-//            return acos(dot_pro / (p1.norm() * p2.norm()));
-//        }
-    };
+            return acos_helper(dot_pro / (p1.norm() * p2.norm()));
+        };
 
-    double lambda = angle_between_three_vertices(v0, v2, v1);
-    double gamma  = angle_between_three_vertices(v0, v3, v1);
+    auto lambda = angle_between_three_vertices(v0, v2, v1);
+    auto gamma  = angle_between_three_vertices(v0, v3, v1);
 
-    if (lambda + gamma <= M_PI + std::numeric_limits<double>::epsilon())
+    if (lambda + gamma <= static_cast<Scalar>(M_PI) + std::numeric_limits<Scalar>::epsilon())
     {
-//        wmtk::logger().info("returning false 1");
+        // wmtk::logger().info("returning false 1");
         return false;
     } else
     {
@@ -217,22 +218,24 @@ bool DelaunayEdgeFlip::swap_edge_after(const TriMesh::Tuple& t)
         alpha = angle_between_three_vertices(v3, v0, v1);
         beta  = angle_between_three_vertices(v2, v0, v1);
 
-        if (alpha + beta >= M_PI - std::numeric_limits<double>::epsilon())
+        if (alpha + beta >= static_cast<Scalar>(M_PI) - std::numeric_limits<Scalar>::epsilon())
         {
-//            wmtk::logger().info("returning false 2");
+            // wmtk::logger().info("returning false 2");
             return false;
         }
 
         alpha = angle_between_three_vertices(v3, v1, v0);
         beta  = angle_between_three_vertices(v2, v1, v0);
 
-        if (alpha + beta >= M_PI - std::numeric_limits<double>::epsilon())
+        if (alpha + beta >= static_cast<Scalar>(M_PI) - std::numeric_limits<Scalar>::epsilon())
         {
-//            wmtk::logger().info("returning false 3");
+            // wmtk::logger().info("returning false 3");
             return false;
         }
     }
 
-//    wmtk::logger().info("returning true 1");
+    // wmtk::logger().info("returning true 1");
     return true;
 }
+
+} // namespace app::def

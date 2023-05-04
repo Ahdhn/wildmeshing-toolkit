@@ -22,22 +22,24 @@
 #include <queue>
 namespace app::def {
 
+template <typename Scalar>
 struct VertexAttributes
 {
-    Eigen::Vector3d pos;
+    Eigen::Vector3<Scalar> pos;
     size_t partition_id;
     bool freeze = false;
 };
 
+template <typename Scalar>
 class DelaunayEdgeFlip : public wmtk::TriMesh
 {
 public:
 
-    using VertAttCol = wmtk::AttributeCollection<VertexAttributes>;
+    using VertAttCol = wmtk::AttributeCollection<VertexAttributes<Scalar>>;
     VertAttCol vertex_attrs;
 
     explicit DelaunayEdgeFlip(
-        std::vector<Eigen::Vector3d> _m_vertex_positions,
+        std::vector<Eigen::Vector3<Scalar>> _m_vertex_positions,
         const std::vector<std::array<size_t, 3>>& tris,
         int num_threads = 1);
 
@@ -65,3 +67,5 @@ private:
 };
 
 } // namespace app::def
+
+#include "DelaunayEdgeFlip_impl.h"
