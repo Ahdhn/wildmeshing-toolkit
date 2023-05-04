@@ -259,6 +259,7 @@ void AdaptiveTessellation::load_texcoord_set_scale_offset(
     Eigen::MatrixXd& UV,
     Eigen::MatrixXi& F)
 {
+    ZoneScoped;
     // load uv coordinates and connectivities
     auto mesh = lagrange::io::load_mesh<lagrange::SurfaceMesh32d>(input_mesh_path);
     triangulate_polygonal_facets(mesh);
@@ -358,6 +359,7 @@ std::vector<AdaptiveTessellation::Tuple> AdaptiveTessellation::new_edges_after(
 
 void AdaptiveTessellation::create_mesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 {
+    ZoneScoped;
     std::vector<Eigen::Vector3d> V_env;
     V_env.resize(V.rows());
     std::vector<Eigen::Vector3i> F_env;
@@ -821,6 +823,7 @@ double AdaptiveTessellation::get_area_accuracy_error(const Tuple& edge_tuple) co
 
 std::pair<double, Eigen::Vector2d> AdaptiveTessellation::get_one_ring_energy(const Tuple& loc) const
 {
+    ZoneScoped;
     auto one_ring = get_one_ring_tris_for_vertex(loc);
     wmtk::DofVector dofx;
     if (is_boundary_vertex(loc) && mesh_parameters.m_boundary_parameter) {
@@ -885,6 +888,7 @@ std::pair<double, Eigen::Vector2d> AdaptiveTessellation::get_one_ring_energy(con
 
 Eigen::VectorXd AdaptiveTessellation::get_quality_all_triangles()
 {
+    ZoneScoped;
     // Use a concurrent vector as for_each_face is parallel
     tbb::concurrent_vector<double> quality;
     quality.reserve(vertex_attrs.size());
@@ -937,47 +941,47 @@ void AdaptiveTessellation::mesh_improvement(int max_its)
             mesh_parameters.m_stop_energy);
         wmtk::logger().info("current length {}", avg_edge_len(*this));
 
-        split_all_edges();
-        assert(invariants(get_faces()));
-        auto split_finish_time = lagrange::get_timestamp();
-        mesh_parameters.js_log["iteration_" + std::to_string(it)]["split time"] =
-            lagrange::timestamp_diff_in_seconds(start_time, split_finish_time);
-        consolidate_mesh();
-        write_displaced_obj(
-            mesh_parameters.m_output_folder + "/after_split_" + std::to_string(it) + ".obj",
-            mesh_parameters.m_displacement);
-        write_obj(
-            mesh_parameters.m_output_folder + "/after_split_" + std::to_string(it) + "2d.obj");
+        // split_all_edges();
+        // assert(invariants(get_faces()));
+        // auto split_finish_time = lagrange::get_timestamp();
+        // mesh_parameters.js_log["iteration_" + std::to_string(it)]["split time"] =
+        //     lagrange::timestamp_diff_in_seconds(start_time, split_finish_time);
+        // consolidate_mesh();
+        // write_displaced_obj(
+        //     mesh_parameters.m_output_folder + "/after_split_" + std::to_string(it) + ".obj",
+        //     mesh_parameters.m_displacement);
+        // write_obj(
+        //     mesh_parameters.m_output_folder + "/after_split_" + std::to_string(it) + "2d.obj");
 
-        swap_all_edges();
-        assert(invariants(get_faces()));
-        auto swap_finish_time = lagrange::get_timestamp();
-        mesh_parameters.js_log["iteration_" + std::to_string(it)]["swap time"] =
-            lagrange::timestamp_diff_in_seconds(split_finish_time, swap_finish_time);
-        consolidate_mesh();
-        write_displaced_obj(
-            mesh_parameters.m_output_folder + "/after_swap_" + std::to_string(it) + ".obj",
-            mesh_parameters.m_displacement);
-        write_obj(mesh_parameters.m_output_folder + "/after_swap_" + std::to_string(it) + "2d.obj");
+        // swap_all_edges();
+        // assert(invariants(get_faces()));
+        // auto swap_finish_time = lagrange::get_timestamp();
+        // mesh_parameters.js_log["iteration_" + std::to_string(it)]["swap time"] =
+        //     lagrange::timestamp_diff_in_seconds(split_finish_time, swap_finish_time);
+        // consolidate_mesh();
+        // write_displaced_obj(
+        //     mesh_parameters.m_output_folder + "/after_swap_" + std::to_string(it) + ".obj",
+        //     mesh_parameters.m_displacement);
+        // write_obj(mesh_parameters.m_output_folder + "/after_swap_" + std::to_string(it) + "2d.obj");
 
-        collapse_all_edges();
-        assert(invariants(get_faces()));
-        consolidate_mesh();
-        auto collapse_finish_time = lagrange::get_timestamp();
-        mesh_parameters.js_log["iteration_" + std::to_string(it)]["collapse time"] =
-            lagrange::timestamp_diff_in_seconds(swap_finish_time, collapse_finish_time);
+        // collapse_all_edges();
+        // assert(invariants(get_faces()));
+        // consolidate_mesh();
+        // auto collapse_finish_time = lagrange::get_timestamp();
+        // mesh_parameters.js_log["iteration_" + std::to_string(it)]["collapse time"] =
+        //     lagrange::timestamp_diff_in_seconds(swap_finish_time, collapse_finish_time);
 
-        write_displaced_obj(
-            mesh_parameters.m_output_folder + "/after_collapse_" + std::to_string(it) + ".obj",
-            mesh_parameters.m_displacement);
-        write_obj(
-            mesh_parameters.m_output_folder + "/after_collapse_" + std::to_string(it) + "2d.obj");
+        // write_displaced_obj(
+        //     mesh_parameters.m_output_folder + "/after_collapse_" + std::to_string(it) + ".obj",
+        //     mesh_parameters.m_displacement);
+        // write_obj(
+        //     mesh_parameters.m_output_folder + "/after_collapse_" + std::to_string(it) + "2d.obj");
 
         smooth_all_vertices();
         assert(invariants(get_faces()));
         auto smooth_finish_time = lagrange::get_timestamp();
         mesh_parameters.js_log["iteration_" + std::to_string(it)]["smooth time"] =
-            lagrange::timestamp_diff_in_seconds(collapse_finish_time, smooth_finish_time);
+            lagrange::timestamp_diff_in_seconds(start_time, smooth_finish_time);
         consolidate_mesh();
         write_displaced_obj(
             mesh_parameters.m_output_folder + "/after_smooth_" + std::to_string(it) + ".obj",

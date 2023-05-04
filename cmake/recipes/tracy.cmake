@@ -15,7 +15,7 @@ endif()
 
 message(STATUS "Third-party: creating target 'Tracy::TracyClient'")
 
-option(TRACY_ENABLE "Enable profiling with Tracy" OFF)
+option(TRACY_ENABLE "Enable profiling with Tracy" ON)
 
 include(FetchContent)
 FetchContent_Declare(

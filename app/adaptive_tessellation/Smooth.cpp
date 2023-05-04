@@ -11,7 +11,6 @@
 #include <wmtk/utils/TriQualityUtils.hpp>
 #include <tracy/Tracy.hpp>
 
-
 #include <limits>
 #include <optional>
 

@@ -125,6 +125,7 @@ void AdaptiveTessellation::split_all_edges()
 bool AdaptiveTessellation::split_edge_before(const Tuple& edge_tuple)
 {
     ZoneScoped;
+    /*
     static std::atomic_int cnt = 0;
     if (!TriMesh::split_edge_before(edge_tuple)) return false;
     // write_displaced_obj(
@@ -160,6 +161,7 @@ bool AdaptiveTessellation::split_edge_before(const Tuple& edge_tuple)
     else
         vertex_attrs[cache.local().v2].boundary_vertex = false;
     cnt++;
+    */
     return true;
 }
 bool AdaptiveTessellation::split_edge_after(const Tuple& edge_tuple)

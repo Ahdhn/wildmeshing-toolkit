@@ -18,6 +18,7 @@ using namespace wmtk;
 
 void TriMesh::copy_connectivity(const TriMesh& o)
 {
+    ZoneScoped;
     // auto l = std::scoped_lock(vertex_connectivity_lock, tri_connectivity_lock,
     // o.vertex_connectivity_lock, o.tri_connectivity_lock);
     //  explicitly make sure that the connectivity data is copied and sized properly
@@ -38,6 +39,7 @@ bool TriMesh::invariants(const std::vector<Tuple>&)
 // a valid mesh can have triangles that are is_removed == true
 bool wmtk::TriMesh::check_mesh_connectivity_validity() const
 {
+    ZoneScoped;
     std::vector<std::vector<size_t>> conn_tris(vert_capacity());
     for (size_t i = 0; i < tri_capacity(); i++) {
         if (m_tri_connectivity[i].m_is_removed) continue;
@@ -60,6 +62,7 @@ bool wmtk::TriMesh::check_mesh_connectivity_validity() const
 
 bool wmtk::TriMesh::check_edge_manifold() const
 {
+    ZoneScoped;
     std::vector<size_t> count(tri_capacity() * 3, 0);
     auto faces = get_faces();
     for (Tuple& f : faces) {
@@ -101,6 +104,7 @@ void TriMesh::consolidate_mesh()
 
 std::vector<size_t> TriMesh::get_one_ring_vids_for_vertex_with_duplicates(const size_t& vid) const
 {
+    ZoneScoped;
     std::vector<size_t> one_ring;
     auto& conn_tri = m_vertex_connectivity[vid].m_conn_tris;
 
@@ -116,6 +120,7 @@ std::vector<size_t> TriMesh::get_one_ring_vids_for_vertex_with_duplicates(const 
 
 std::vector<size_t> TriMesh::get_one_ring_vids_for_vertex(const size_t& vid) const
 {
+    ZoneScoped;
     std::vector<size_t> one_ring;
     auto& conn_tri = m_vertex_connectivity[vid].m_conn_tris;
 
@@ -133,6 +138,7 @@ std::vector<size_t> TriMesh::get_one_ring_vids_for_vertex(const size_t& vid) con
 std::vector<wmtk::TriMesh::Tuple> TriMesh::get_one_ring_tris_for_vertex(
     const wmtk::TriMesh::Tuple& t) const
 {
+    ZoneScoped;
     std::vector<TriMesh::Tuple> one_ring;
     size_t vid = t.vid(*this);
     auto& conn_tri = m_vertex_connectivity[vid].m_conn_tris;
@@ -149,6 +155,7 @@ std::vector<wmtk::TriMesh::Tuple> TriMesh::get_one_ring_tris_for_vertex(
 std::vector<wmtk::TriMesh::Tuple> TriMesh::get_one_ring_edges_for_vertex(
     const wmtk::TriMesh::Tuple& t) const
 {
+    ZoneScoped;
     std::vector<Tuple> one_ring_edges;
     std::vector<size_t> one_ring_vertices;
     size_t vid = t.vid(*this);
@@ -181,6 +188,7 @@ std::vector<wmtk::TriMesh::Tuple> TriMesh::get_one_ring_edges_for_vertex(
 std::array<wmtk::TriMesh::Tuple, 3> TriMesh::oriented_tri_vertices(
     const wmtk::TriMesh::Tuple& t) const
 {
+    ZoneScoped;
     std::array<TriMesh::Tuple, 3> incident_verts;
     size_t fid = t.fid(*this);
     auto indices = m_tri_connectivity[fid].m_indices;
@@ -193,6 +201,7 @@ std::array<wmtk::TriMesh::Tuple, 3> TriMesh::oriented_tri_vertices(
 
 std::array<size_t, 3> TriMesh::oriented_tri_vids(const Tuple& t) const
 {
+    ZoneScoped;
     std::array<size_t, 3> incident_verts;
     size_t fid = t.fid(*this);
     auto indices = m_tri_connectivity[fid].m_indices;

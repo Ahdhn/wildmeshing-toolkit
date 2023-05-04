@@ -1,5 +1,7 @@
 #include "Image.h"
 
+#include <tracy/Tracy.hpp>
+
 using namespace wmtk;
 float modulo(double x, double n)
 {
@@ -107,6 +109,7 @@ void Image::load(
     const WrappingMode mode_x,
     const WrappingMode mode_y)
 {
+    ZoneScoped;
     int w, h, channels;
     channels = 1;
     std::vector<float> buffer;

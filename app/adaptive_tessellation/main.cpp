@@ -33,6 +33,7 @@
 #include <wmtk/utils/TriQualityUtils.hpp>
 #include "AdaptiveTessellation.h"
 #include "Parameters.h"
+#include "spdlog/sinks/null_sink.h"
 
 template <class T>
 using RowMatrix2 = Eigen::Matrix<T, Eigen::Dynamic, 2, Eigen::RowMajor>;
@@ -43,6 +44,8 @@ using json = nlohmann::json;
 using namespace wmtk;
 using namespace adaptive_tessellation;
 using namespace lagrange;
+
+
 int main(int argc, char** argv)
 {
     using DScalar = wmtk::EdgeLengthEnergy::DScalar;
@@ -50,7 +53,7 @@ int main(int argc, char** argv)
     ZoneScopedN("adaptive_tessellation_main");
     lagrange::enable_fpe();
     CLI::App app{argv[0]};
-    std::string input_json;
+    std::string input_json = "C:/Users/jedumas/workspace/geometryprocessing/wildmeshing-toolkit/config/ninja_config.json";
     std::string output_json;
 
     app.add_option("-c, --config", input_json, "input json file");
@@ -65,7 +68,14 @@ int main(int argc, char** argv)
     std::string output_file = config["output_file"];
     output_json = config["output_json"];
 
-    FrameMark;
+    wmtk::set_logger(spdlog::create<spdlog::sinks::null_sink_st>("null_logger"));
+
+    std::thread t([] {
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(5s);
+        std::cout << "time up" << std::endl;
+        exit(0);
+    });
 
     int image_size = 512;
     image_size = config["image_size"];
