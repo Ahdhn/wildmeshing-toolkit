@@ -60,8 +60,8 @@ private:
     // the edge is flipped.
     struct PositionInfoCache
     {
-        Eigen::Vector3d v0p;
-        Eigen::Vector3d v1p;
+        Eigen::Vector3<Scalar> v0p;
+        Eigen::Vector3<Scalar> v1p;
     };
     tbb::enumerable_thread_specific<PositionInfoCache> edge_position_cache;
 };

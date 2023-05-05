@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     wmtk::logger().info("def output to {}", output_mesh_name);
 
     // Read in the mesh data
-    Eigen::MatrixXd V;
+    Eigen::MatrixXf V;
     Eigen::MatrixXi F;
     bool ok = igl::read_triangle_mesh(input_mesh_name, V, F);
     assert(ok != false);
@@ -54,14 +54,14 @@ int main(int argc, char** argv)
     wmtk::logger().info("Before_vertices#: {} \n Before_tris#: {}", V.rows(), F.rows());
 
     Eigen::VectorXi SVI, SVJ;
-    Eigen::MatrixXd temp_V = V; // for STL file
+    Eigen::MatrixXf temp_V = V; // for STL file
     igl::remove_duplicate_vertices(temp_V, 0, V, SVI, SVJ);
     for (int i = 0; i < F.rows(); i++)
         for (int j : {0, 1, 2}) F(i, j) = SVJ[F(i, j)];
 
     wmtk::logger().info("After_vertices#: {} \n After_tris#: {}", V.rows(), F.rows());
 
-    std::vector<Eigen::Vector3d> v(V.rows());
+    std::vector<Eigen::Vector3f> v(V.rows());
     std::vector<std::array<size_t, 3>> tri(F.rows());
     for (int i = 0; i < V.rows(); i++) {
         v[i] = V.row(i);

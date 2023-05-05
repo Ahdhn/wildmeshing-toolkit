@@ -24,7 +24,15 @@ DelaunayEdgeFlip<Scalar>::DelaunayEdgeFlip(
     assert(vertex_attrs.size() == _m_vertex_positions.size());
 
     // Partition the mesh
-    auto partition_ids = wmtk::partition_morton(_m_vertex_positions, NUM_THREADS);
+    // SDP note: this casting nonsense is temporary since
+    // wmtk::partition_morton is hardwired to use Eigen::Vector3d
+    // The partitioning shouldn't be timed, so not an issue for now.
+    std::vector<Eigen::Vector3d> input_vector;
+    input_vector.reserve(_m_vertex_positions.size());
+    for (const auto& v : _m_vertex_positions) {
+        input_vector.push_back(v.template cast<double>());
+    }
+    auto partition_ids = wmtk::partition_morton(input_vector, NUM_THREADS);
     assert(partition_ids.size() == _m_vertex_positions.size());
     wmtk::logger().info("partition_ids: {}", partition_ids.size());
 
@@ -106,7 +114,7 @@ template <typename Scalar>
 bool DelaunayEdgeFlip<Scalar>::write_triangle_mesh(std::string path)
 {
     // write the collapsed mesh into a obj and assert the mesh is manifold
-    Eigen::MatrixXd V = Eigen::MatrixXd::Zero(vert_capacity(), 3);
+    Eigen::MatrixX<Scalar> V = Eigen::MatrixX<Scalar>::Zero(vert_capacity(), 3);
     for (auto& t : get_vertices()) {
         auto i = t.vid(*this);
         V.row(i) = vertex_attrs[i].pos;
