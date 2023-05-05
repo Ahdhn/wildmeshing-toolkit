@@ -53,10 +53,11 @@ int main(int argc, char** argv)
     ZoneScopedN("adaptive_tessellation_main");
     lagrange::enable_fpe();
     CLI::App app{argv[0]};
-    std::string input_json = "C:/Users/jedumas/workspace/geometryprocessing/wildmeshing-toolkit/config/ninja_config.json";
+    std::string input_json = "E:/tmp/ninja/ninja_128.json";
     std::string output_json;
 
-    app.add_option("-c, --config", input_json, "input json file");
+    app.add_option("-c, --config", input_json, "input json file")
+        ->check(CLI::ExistingFile);
 
     CLI11_PARSE(app, argc, argv);
     std::ifstream jsonFile(input_json);
@@ -70,12 +71,12 @@ int main(int argc, char** argv)
 
     wmtk::set_logger(spdlog::create<spdlog::sinks::null_sink_st>("null_logger"));
 
-    std::thread t([] {
-        using namespace std::chrono_literals;
-        std::this_thread::sleep_for(5s);
-        std::cout << "time up" << std::endl;
-        exit(0);
-    });
+    // std::thread t([] {
+    //     using namespace std::chrono_literals;
+    //     std::this_thread::sleep_for(30s);
+    //     std::cout << "time up" << std::endl;
+    //     exit(0);
+    // });
 
     int image_size = 512;
     image_size = config["image_size"];

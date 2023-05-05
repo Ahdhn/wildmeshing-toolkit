@@ -120,7 +120,7 @@ struct ExecutePass
      */
     size_t max_retry_limit = 10;
 
-    /* 
+    /*
      * Add an operation to the set of operation types
      */
     template <typename OpType>
@@ -128,7 +128,7 @@ struct ExecutePass
     {
         new_edit_operation_maps[name] = op;
     }
-    /* 
+    /*
      * Add an operation using its default name
      */
     template <typename OpType>
@@ -269,7 +269,7 @@ public:
 
         auto run_single_queue = [&](auto& Q, int task_id) {
             auto ele_in_queue = Elem();
-            while ([&]() { return Q.try_pop(ele_in_queue); }()) {
+            while (cnt_success < 20 && Q.try_pop(ele_in_queue)) {
                 auto& [weight, op, tup, retry] = ele_in_queue;
                 if (!tup.is_valid(m)) continue;
 

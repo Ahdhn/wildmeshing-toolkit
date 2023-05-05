@@ -941,12 +941,12 @@ void AdaptiveTessellation::mesh_improvement(int max_its)
             mesh_parameters.m_stop_energy);
         wmtk::logger().info("current length {}", avg_edge_len(*this));
 
-        // split_all_edges();
-        // assert(invariants(get_faces()));
-        // auto split_finish_time = lagrange::get_timestamp();
-        // mesh_parameters.js_log["iteration_" + std::to_string(it)]["split time"] =
-        //     lagrange::timestamp_diff_in_seconds(start_time, split_finish_time);
-        // consolidate_mesh();
+        split_all_edges();
+        assert(invariants(get_faces()));
+        auto split_finish_time = lagrange::get_timestamp();
+        mesh_parameters.js_log["iteration_" + std::to_string(it)]["split time"] =
+            lagrange::timestamp_diff_in_seconds(start_time, split_finish_time);
+        consolidate_mesh();
         // write_displaced_obj(
         //     mesh_parameters.m_output_folder + "/after_split_" + std::to_string(it) + ".obj",
         //     mesh_parameters.m_displacement);
@@ -977,17 +977,17 @@ void AdaptiveTessellation::mesh_improvement(int max_its)
         // write_obj(
         //     mesh_parameters.m_output_folder + "/after_collapse_" + std::to_string(it) + "2d.obj");
 
-        smooth_all_vertices();
-        assert(invariants(get_faces()));
-        auto smooth_finish_time = lagrange::get_timestamp();
-        mesh_parameters.js_log["iteration_" + std::to_string(it)]["smooth time"] =
-            lagrange::timestamp_diff_in_seconds(start_time, smooth_finish_time);
-        consolidate_mesh();
-        write_displaced_obj(
-            mesh_parameters.m_output_folder + "/after_smooth_" + std::to_string(it) + ".obj",
-            mesh_parameters.m_displacement);
-        write_obj(
-            mesh_parameters.m_output_folder + "/after_smooth_" + std::to_string(it) + "2d.obj");
+        // smooth_all_vertices();
+        // assert(invariants(get_faces()));
+        // auto smooth_finish_time = lagrange::get_timestamp();
+        // mesh_parameters.js_log["iteration_" + std::to_string(it)]["smooth time"] =
+        //     lagrange::timestamp_diff_in_seconds(start_time, smooth_finish_time);
+        // consolidate_mesh();
+        // write_displaced_obj(
+        //     mesh_parameters.m_output_folder + "/after_smooth_" + std::to_string(it) + ".obj",
+        //     mesh_parameters.m_displacement);
+        // write_obj(
+        //     mesh_parameters.m_output_folder + "/after_smooth_" + std::to_string(it) + "2d.obj");
 
         auto avg_grad = (mesh_parameters.m_gradient / vert_capacity()).stableNorm();
 
@@ -1027,6 +1027,7 @@ void AdaptiveTessellation::mesh_improvement(int max_its)
         pre_max_energy = mesh_parameters.m_max_energy;
         consolidate_mesh();
         FrameMark;
+        break;
     }
 
     wmtk::logger().info(
