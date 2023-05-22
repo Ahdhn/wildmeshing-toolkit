@@ -585,6 +585,9 @@ void AdaptiveTessellation::write_vtk(const std::filesystem::path& path)
         if (mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::AREA_ACCURACY) {
             cost = get_cached_area_accuracy_error_per_edge(e) * get_length2d(e);
         }
+        if (mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::DIFF) {
+            cost = get_projected_relative_error_for_split(e);
+        }
 
         // Eigen::Matrix<double, 2, 1> pos1 = vertex_attrs[e.vid(*this)].pos;
         // Eigen::Matrix<double, 2, 1> pos2 =

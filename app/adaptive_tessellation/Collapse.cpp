@@ -867,7 +867,7 @@ void AdaptiveTessellation::collapse_all_edges()
         executor.priority = [&](auto& m, auto o, auto& e) {
             if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::AREA_ACCURACY) {
                 // priority already scaled by 2d edge length
-                return -m.get_cached_area_accuracy_error_per_edge(e); // * m.get_length2d(edge);
+                return -m.get_cached_area_accuracy_error_per_edge(e) * m.get_length2d(e);
             } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 // error is not scaled by 2d edge length
                 return -m.get_quadrics_area_accuracy_error_for_split(e) * m.get_length2d(e);
@@ -878,11 +878,8 @@ void AdaptiveTessellation::collapse_all_edges()
         executor.num_threads = NUM_THREADS;
         executor.is_weight_up_to_date = [](auto& m, auto& ele) {
             auto& [weight, op, tup] = ele;
-            double energy =
-                m.get_cached_area_accuracy_error_per_edge(tup); // * at.get_length2d(edge);
+            double energy = m.get_cached_area_accuracy_error_per_edge(tup) * m.get_length2d(tup);
             if (energy != -weight) {
-                // wmtk::logger().info("outdated weight in queue");
-                // wmtk::logger().info("energy is {}, weight is {}", energy, weight);
                 return false;
             }
 

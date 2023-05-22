@@ -402,8 +402,7 @@ public:
         Eigen::Matrix<double, 3, 2, Eigen::RowMajor> triangle) const;
     // // return the sum of the accuracy error of the two incident faces
     double get_cached_area_accuracy_error_per_edge(const Tuple& edge_tuple) const;
-    std::tuple<double, double, double> get_projected_relative_error_for_split(
-        const Tuple& edge_tuple) const;
+    double get_projected_relative_error_for_split(const Tuple& edge_tuple) const;
     double get_quadrics_area_accuracy_error_for_split(const Tuple& face_tuple) const;
     double get_one_ring_quadrics_error_for_vertex(const Tuple& v) const;
     double get_quadric_error_for_face(const Tuple& f) const;

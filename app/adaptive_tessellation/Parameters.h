@@ -30,7 +30,8 @@ enum class EDGE_LEN_TYPE {
     MIPMAP = 4,
     EDGE_ACCURACY = 5,
     AREA_ACCURACY = 6,
-    TRI_QUADRICS = 7
+    TRI_QUADRICS = 7,
+    DIFF = 8
 };
 struct Parameters
 {

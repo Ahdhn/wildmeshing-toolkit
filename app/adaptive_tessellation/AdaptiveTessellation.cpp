@@ -79,10 +79,9 @@ void AdaptiveTessellation::mesh_preprocessing(
     wmtk::TriMesh m_3d;
     std::vector<std::array<size_t, 3>> tris;
     for (auto f = 0; f < input_F_.rows(); f++) {
-        std::array<size_t, 3> tri = {
-            (size_t)input_F_(f, 0),
-            (size_t)input_F_(f, 1),
-            (size_t)input_F_(f, 2)};
+        std::array<size_t, 3> tri = {(size_t)input_F_(f, 0),
+                                     (size_t)input_F_(f, 1),
+                                     (size_t)input_F_(f, 2)};
         tris.emplace_back(tri);
     }
     m_3d.create_mesh(input_V_.rows(), tris);
@@ -140,6 +139,7 @@ void AdaptiveTessellation::mesh_preprocessing(
 
 void AdaptiveTessellation::prepare_distance_quadrature_cached_energy()
 {
+    wmtk::logger().info("!!!   prepare distance cache");
     std::vector<std::array<float, 6>> uv_triangles(tri_capacity());
     std::vector<TriMesh::Tuple> tris_tuples = get_faces();
     for (int i = 0; i < tris_tuples.size(); i++) {
@@ -578,12 +578,12 @@ void AdaptiveTessellation::set_edge_length_measurement(const EDGE_LEN_TYPE edge_
         break;
         // for AREA_ACCURACY and TRI_QUADRICS errors are calculated using dedicated functions
         // but we want to do the preprocessing for each facefor them
-
-    // we cache each face error for AREA_ACCURACY
-    case EDGE_LEN_TYPE::AREA_ACCURACY: prepare_distance_quadrature_cached_energy(); break;
     // we cache each face quadrics for TRI_QUADRICS
     case EDGE_LEN_TYPE::TRI_QUADRICS: prepare_quadrics(); break;
-    default: break;
+    default:
+        // we cache each face error for AREA_ACCURACY and DIFF
+        prepare_distance_quadrature_cached_energy();
+        break;
     }
 }
 
@@ -1002,12 +1002,9 @@ double AdaptiveTessellation::get_cached_area_accuracy_error_per_edge(const Tuple
     return (error1 + error2);
 }
 
-std::tuple<double, double, double> AdaptiveTessellation::get_projected_relative_error_for_split(
-    const Tuple& edge_tuple) const
+double AdaptiveTessellation::get_projected_relative_error_for_split(const Tuple& edge_tuple) const
 {
-    throw std::runtime_error("get relative error for split should not be used");
-
-    ///////// THIS IS NOT USED
+    // throw std::runtime_error("get relative error for split should not be used");
     double error, error1, error2;
     error1 = face_attrs[edge_tuple.fid(*this)].accuracy_measure.cached_distance_integral;
     if (edge_tuple.switch_face(*this).has_value()) {
@@ -1016,48 +1013,52 @@ std::tuple<double, double, double> AdaptiveTessellation::get_projected_relative_
     } else
         error2 = error1;
     double e_before = error1 + error2;
+    // ///////// THIS IS NOT USED
+    auto e_tuple = edge_tuple.is_ccw(*this) ? edge_tuple : edge_tuple.switch_vertex(*this);
 
-    double e_after, error_after_1, error_after_2, error_after_3, error_after_4;
+    double e_after, error_after_1, error_after_2;
+    double error_after_3 = 0., error_after_4 = 0.;
     std::vector<std::array<float, 6>> new_triangles(2);
     std::vector<float> new_computed_errors(2);
 
-    const Eigen::Vector2f mid_point_uv =
+    Eigen::Vector2f mid_point_uv =
         (0.5 * (vertex_attrs[edge_tuple.vid(*this)].pos +
                 vertex_attrs[edge_tuple.switch_vertex(*this).vid(*this)].pos))
             .cast<float>();
-    const Eigen::Vector2f uv1 = vertex_attrs[edge_tuple.vid(*this)].pos.cast<float>();
-    const Eigen::Vector2f uv2 =
-        vertex_attrs[edge_tuple.switch_vertex(*this).vid(*this)].pos.cast<float>();
-    const Eigen::Vector2f uv3 =
-        vertex_attrs[edge_tuple.switch_edge(*this).switch_vertex(*this).vid(*this)]
-            .pos.cast<float>();
+    Eigen::Vector2f uv1 = vertex_attrs[e_tuple.vid(*this)].pos.cast<float>();
+    Eigen::Vector2f uv2 = vertex_attrs[e_tuple.switch_vertex(*this).vid(*this)].pos.cast<float>();
+    Eigen::Vector2f uv3 =
+        vertex_attrs[e_tuple.switch_edge(*this).switch_vertex(*this).vid(*this)].pos.cast<float>();
 
     new_triangles[0] = {uv1(0), uv1(1), mid_point_uv(0), mid_point_uv(1), uv3(0), uv3(1)};
-    new_triangles[1] = {uv2(0), uv2(1), mid_point_uv(0), mid_point_uv(1), uv3(0), uv3(1)};
+    new_triangles[1] = {mid_point_uv(0), mid_point_uv(1), uv2(0), uv2(1), uv3(0), uv3(1)};
     m_texture_integral.get_error_per_triangle(new_triangles, new_computed_errors);
     error_after_1 = new_computed_errors[0];
     error_after_2 = new_computed_errors[1];
-    if (edge_tuple.switch_face(*this).has_value()) {
-        const Eigen::Vector2f uv4 =
-            vertex_attrs
-                [edge_tuple.switch_face(*this).value().switch_edge(*this).switch_vertex(*this).vid(
-                     *this)]
-                    .pos.cast<float>();
 
-        new_triangles[0] = {uv1(0), uv1(1), mid_point_uv(0), mid_point_uv(1), uv4(0), uv4(1)};
-        new_triangles[1] = {uv2(0), uv2(1), mid_point_uv(0), mid_point_uv(1), uv4(0), uv4(1)};
+    // interior edge
+    auto sibling_opt = get_sibling_edge_opt(e_tuple);
+    if (sibling_opt.has_value()) {
+        TriMesh::Tuple e_mirror = sibling_opt.value();
+        assert(e_mirror.is_ccw(*this));
+        uv1 = vertex_attrs[e_mirror.vid(*this)].pos.cast<float>();
+        uv2 = vertex_attrs[e_mirror.switch_vertex(*this).vid(*this)].pos.cast<float>();
+        uv3 = vertex_attrs[e_mirror.switch_edge(*this).switch_vertex(*this).vid(*this)]
+                  .pos.cast<float>();
+        mid_point_uv = (0.5 * (uv1 + uv2));
+        new_triangles[0] = {uv1(0), uv1(1), mid_point_uv(0), mid_point_uv(1), uv3(0), uv3(1)};
+        new_triangles[1] = {mid_point_uv(0), mid_point_uv(1), uv2(0), uv2(1), uv3(0), uv3(1)};
         m_texture_integral.get_error_per_triangle(new_triangles, new_computed_errors);
-
         error_after_3 = new_computed_errors[0];
         error_after_4 = new_computed_errors[1];
     } else {
-        // TODO set error after 3 and 4 to the the mirror face error when it's seam
         error_after_3 = error_after_1;
         error_after_4 = error_after_2;
     }
     e_after = error_after_1 + error_after_2 + error_after_3 + error_after_4;
     error = e_before - e_after;
-    return {error, error1, error2};
+    // error = error < 0 ? std::numeric_limits<double>::max() : error;
+    return error;
 }
 
 double AdaptiveTessellation::get_one_ring_quadrics_error_for_vertex(const Tuple& v) const
@@ -1613,7 +1614,8 @@ void AdaptiveTessellation::update_energy_cache(const std::vector<Tuple>& tris)
     // update the face_attrs (accuracy error)
     if (!mesh_parameters.m_ignore_embedding) {
         // get a vector of new traingles uvs
-        if (mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::AREA_ACCURACY) {
+        if (mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::AREA_ACCURACY ||
+            mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::DIFF) {
             std::vector<std::array<float, 6>> modified_tris_uv(tris.size());
             for (int i = 0; i < tris.size(); i++) {
                 auto tri = tris[i];

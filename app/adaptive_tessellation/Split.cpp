@@ -16,6 +16,17 @@ auto split_renew = [](auto& m, auto op, auto& tris) {
     return optup;
 };
 
+
+auto split_no_renew = [](auto& m, auto op, auto& tris) {
+    // auto edges = m.new_edges_after(tris);
+    auto optup = std::vector<std::pair<std::string, wmtk::TriMesh::Tuple>>();
+    // for (auto& e : edges) {
+    //     assert(e.is_valid(m));
+    //     optup.emplace_back(op, e);
+    // }
+    return optup;
+};
+
 auto split_quadrics_renew = [](auto& m, auto op, auto& tris) {
     // add all edges that touches the new faces
     std::vector<wmtk::TriMesh::Tuple> edges;
@@ -553,7 +564,9 @@ void AdaptiveTessellation::split_all_edges()
     wmtk::logger().info("size for edges to be split is {}", collect_all_ops.size());
     auto setup_and_execute = [&](auto executor) {
         addPairedCustomOps(executor);
-        executor.renew_neighbor_tuples = split_renew;
+        // executor.renew_neighbor_tuples = split_renew;
+        executor.renew_neighbor_tuples = split_no_renew;
+
         executor.priority = [&](auto& m, auto _, auto& e) {
             double priority = 0.;
             if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::AREA_ACCURACY) {
@@ -562,6 +575,9 @@ void AdaptiveTessellation::split_all_edges()
             } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 // error is not scaled by 2d edge length
                 return m.get_quadrics_area_accuracy_error_for_split(e) * m.get_length2d(e);
+            } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::DIFF) {
+                priority = get_projected_relative_error_for_split(e);
+                return priority;
             } else
                 return m.mesh_parameters.m_get_length(e);
         };
@@ -577,6 +593,9 @@ void AdaptiveTessellation::split_all_edges()
             } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 unscaled_total_error = m.get_quadrics_area_accuracy_error_for_split(tup);
                 total_error = unscaled_total_error * m.get_length2d(tup);
+            } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::DIFF) {
+                unscaled_total_error = m.get_projected_relative_error_for_split(tup);
+                total_error = unscaled_total_error;
             } else {
                 total_error = m.mesh_parameters.m_get_length(tup);
                 unscaled_total_error = total_error;
@@ -590,11 +609,15 @@ void AdaptiveTessellation::split_all_edges()
                 m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::AREA_ACCURACY ||
                 m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 if (unscaled_total_error < m.mesh_parameters.m_accuracy_threshold) {
-                    wmtk::logger().debug("accuracy smaller than threshold");
+                    // wmtk::logger().debug("accuracy smaller than threshold");
                     return false;
                 }
-            } else if (total_error < 4. / 3. * m.mesh_parameters.m_quality_threshold)
-                return false;
+            } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::DIFF) {
+                // TODO maybe change to <= 0
+                if (total_error > 0) return false;
+            } else {
+                if (total_error < 4. / 3. * m.mesh_parameters.m_quality_threshold) return false;
+            }
             return true;
         };
         executor(*this, collect_all_ops);
