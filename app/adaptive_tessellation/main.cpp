@@ -198,18 +198,20 @@ int main(int argc, char** argv)
         edge_len_type,
         boundary_parameter_on);
     //// TODO DEBUG
-    // m.mesh_parameters.m_early_stopping_number = 100;
+    m.mesh_parameters.m_early_stopping_number = 25000;
     ////
     m.set_vertex_world_positions(); // compute 3d positions for each vertex
     // displace_self_intersection_free(m);
     // m.write_obj(output_file);
-    {
-        LoggerDataCollector ldc;
-        ldc.evaluate_mesh(m);
-        ldc.log_json(m, "before_remeshing");
-    }
+    // {
+    //     LoggerDataCollector ldc;
+    //     ldc.evaluate_mesh(m);
+    //     ldc.log_json(m, "before_remeshing");
+    // }
 
-    {
+    m.write_hdf_displaced_uv(output_folder / "before.hdf");
+
+    if (0) {
         LoggerDataCollector ldc;
         ldc.start_timer();
         m.split_all_edges();
@@ -226,7 +228,7 @@ int main(int argc, char** argv)
     //    ldc.stop_timer();
     //    ldc.evaluate_mesh(m);
     //    ldc.log_json(m, "after_smooth");
-    //    m.write_obj_displaced("after_smooth.obj");
+    //    m.write_obj_displaced(output_folder / "after_smooth.obj");
     //}
 
     m.consolidate_mesh();
@@ -245,7 +247,7 @@ int main(int argc, char** argv)
 
     {
         spdlog::stopwatch sw;
-        displace_self_intersection_free(m);
+        // displace_self_intersection_free(m);
         wmtk::logger().info("Displacement runtime: {} seconds", sw);
     }
     m.write_obj(output_file);

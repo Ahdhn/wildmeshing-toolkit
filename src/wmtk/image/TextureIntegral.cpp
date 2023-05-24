@@ -5,6 +5,7 @@
 #include <wmtk/quadrature/ClippedQuadrature.h>
 
 #include <lagrange/utils/assert.h>
+#include <lagrange/utils/triangle_area.h>
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 
@@ -24,6 +25,7 @@ struct QuadratureCache
     wmtk::Quadrature quad;
     wmtk::Quadrature tmp;
 };
+
 
 // Reference implementation copied over from Displacement.h
 template <typename T, typename DisplacementFunc>

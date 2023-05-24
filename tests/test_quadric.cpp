@@ -153,6 +153,7 @@ MeshType displace_mesh(MeshType mesh, const std::array<wmtk::Image, 3>& position
 MeshType advect_vertices(
     MeshType mesh,
     const std::array<wmtk::Image, 3>& displaced_positions,
+    const std::array<wmtk::Image, 3>& normals,
     wmtk::QuadricIntegral::QuadricType quadric_type)
 {
     auto& uv_attr = mesh.get_indexed_attribute<double>(lagrange::AttributeName::texcoord);
@@ -161,7 +162,7 @@ MeshType advect_vertices(
 
     // Compute per-facet quadrics using image integral
     std::vector<wmtk::Quadric<double>> per_facet_quadrics(mesh.get_num_facets());
-    wmtk::QuadricIntegral integral(displaced_positions, quadric_type);
+    wmtk::QuadricIntegral integral(displaced_positions, normals, quadric_type);
 
     integral.get_quadric_per_triangle(
         mesh.get_num_facets(),
@@ -246,8 +247,8 @@ std::array<wmtk::Image, 3> combine_position_normal_texture(
 
 TEST_CASE("Quadric Integral Advection", "[utils][quadric]")
 {
-    // std::filesystem::path base_dir =
-    //     "/Users/jedumas/cloud/tessellation/sandbox/examples/alien-sphere";
+    std::filesystem::path base_dir =
+        "/Users/jedumas/cloud/tessellation/sandbox/examples/alien-sphere";
 
     // auto mesh = lagrange::io::load_mesh<lagrange::SurfaceMesh32d>(base_dir / "sphere.obj");
     auto mesh = lagrange::io::load_mesh<lagrange::SurfaceMesh32d>(WMTK_DATA_DIR "/hemisphere.obj");
@@ -263,8 +264,9 @@ TEST_CASE("Quadric Integral Advection", "[utils][quadric]")
     // }();
 
     auto positions = load_rgb_image(WMTK_DATA_DIR "/images/hemisphere_512_displaced.exr");
+    auto normals = load_rgb_image(WMTK_DATA_DIR "/images/hemisphere_512_normal-world-space.exr");
 
-    for (size_t k = 0; k < 1; ++k) {
+    for (size_t k = 0; k < 3; ++k) {
         mesh = midpoint_subdivision(mesh);
     }
 
@@ -272,13 +274,13 @@ TEST_CASE("Quadric Integral Advection", "[utils][quadric]")
     lagrange::io::save_mesh("mesh_displaced.obj", displace_mesh(mesh, positions));
     lagrange::io::save_mesh(
         "mesh_point_quadric.obj",
-        advect_vertices(mesh, positions, QuadricType::Point));
+        advect_vertices(mesh, positions, normals, QuadricType::Point));
     lagrange::io::save_mesh(
         "mesh_plane_quadric.obj",
-        advect_vertices(mesh, positions, QuadricType::Plane));
+        advect_vertices(mesh, positions, normals, QuadricType::Plane));
     lagrange::io::save_mesh(
         "mesh_triangle_quadric.obj",
-        advect_vertices(mesh, positions, QuadricType::Triangle));
+        advect_vertices(mesh, positions, normals, QuadricType::Triangle));
     wmtk::logger().info("done");
 
     {

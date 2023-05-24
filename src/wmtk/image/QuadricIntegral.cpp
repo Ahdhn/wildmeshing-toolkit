@@ -1,12 +1,15 @@
 #include "QuadricIntegral.h"
 
 #include <wmtk/quadrature/ClippedQuadrature.h>
+#include <wmtk/utils/autodiff.h>
 #include "helpers.h"
 
 #include <lagrange/utils/assert.h>
 #include <lagrange/utils/triangle_area.h>
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
+
+#include <fstream>
 
 namespace wmtk {
 
@@ -92,18 +95,33 @@ Quadric<double> compute_pixel_point_quadric(const Stencil& patch)
     return Quadric<double>::point_quadric(p0);
 }
 
-Quadric<double> compute_pixel_plane_quadric(const Stencil& patch, double sigma_q, double sigma_n)
+Quadric<double> compute_pixel_normal_quadric(const Eigen::Vector3f& normal)
+{
+    Eigen::Vector3d n = normal.cast<double>();
+    n = std::sqrt(n.norm()) * n.normalized();
+    return Quadric<double>::point_quadric(n);
+}
+
+Quadric<double> compute_pixel_plane_quadric(
+    const Stencil& patch,
+    const Eigen::Vector3f& normal,
+    double sigma_q,
+    double sigma_n)
 {
     const auto mean_q = patch.col(0).cast<double>();
-    const auto mean_n = normal_from_patch(patch);
-    const double stdev_q = stdev_from_patch(patch).norm();
+    // const auto mean_n = normal_from_patch(patch);
+    // const double stdev_q = stdev_from_patch(patch).norm();
+    Eigen::Vector3d mean_n = normal.cast<double>();
+    mean_n = std::sqrt(mean_n.norm()) * mean_n.normalized();
 
     // We want more uncertainty when the area is small, so we divide by the 3d area
-    sigma_n /= std::max(1e-6, mean_n.norm());
+    // sigma_n /= std::max(1e-6, mean_n.norm());
+    sigma_n *= std::sqrt(normal.norm());
 
     // We want more uncertainty when the patch is small, so we divide by the 3d pos standard
     // deviation
-    sigma_q /= std::max(1e-6, stdev_q);
+    // sigma_q /= std::max(1e-6, stdev_q);
+    sigma_q = 0;
 
     return Quadric<double>::probabilistic_plane_quadric(mean_q, mean_n, sigma_q, sigma_n);
 }
@@ -173,13 +191,14 @@ Quadric<double> quadric_from_coefficients(const Eigen::Vector<float, 10>& coeffs
 }
 
 // Optimized implementation that switches between nearest and bilinear interpolation
-template <bool Exact, typename DisplacementFunc>
+template <bool Exact, typename QuadricsFunc, typename DisplacementFunc>
 Quadric<double> get_quadric_per_triangle_adaptive(
     const std::array<wmtk::Image, 10>& images,
     const Eigen::Matrix<double, 3, 2, Eigen::RowMajor>& triangle_uv,
     tbb::enumerable_thread_specific<QuadratureCache>& m_cache,
     const int order,
-    DisplacementFunc get)
+    QuadricsFunc get_quadrics,
+    DisplacementFunc get_displacement)
 {
     Eigen::AlignedBox2d bbox_uv;
     for (const auto& p : triangle_uv.rowwise()) {
@@ -209,8 +228,18 @@ Quadric<double> get_quadric_per_triangle_adaptive(
     const double denom = ((v2 - v3) * (u1 - u3) + (u3 - u2) * (v1 - v3));
     if (denom < std::numeric_limits<double>::denorm_min()) {
         // Degenerate triangle
+        // logger().warn("Degenerate 2d triangle detected");
         return {};
     }
+
+    const double area_2d = lagrange::triangle_area_2d<double>(
+        triangle_uv.row(0),
+        triangle_uv.row(1),
+        triangle_uv.row(2));
+    // if (area_2d < std::numeric_limits<double>::epsilon()) {
+    //     logger().warn("Small-area 2d triangle detected");
+    //     return {};
+    // }
 
     const std::array<Eigen::Hyperplane<double, 2>, 3> edges = {
         Eigen::Hyperplane<double, 2>::Through(triangle_uv.row(0), triangle_uv.row(1)),
@@ -251,12 +280,80 @@ Quadric<double> get_quadric_per_triangle_adaptive(
                 for (size_t i = 0; i < quadr.size(); ++i) {
                     float u = quadr.points()(i, 0);
                     float v = quadr.points()(i, 1);
-                    q += quadric_from_coefficients(get(u, v)) * quadr.weights()[i];
+                    q += quadric_from_coefficients(get_quadrics(u, v)) * quadr.weights()[i];
                 }
             }
         }
     }
-    return q;
+
+    // Compute area ratio
+    Eigen::Vector3d p1 = get_displacement(u1, v1).template cast<double>();
+    Eigen::Vector3d p2 = get_displacement(u2, v2).template cast<double>();
+    Eigen::Vector3d p3 = get_displacement(u3, v3).template cast<double>();
+    const double area_3d = lagrange::triangle_area_3d<double>(p1, p2, p3);
+    return q; // * area_3d / area_2d;
+}
+
+std::array<wmtk::Image, 3> compute_adjusted_normals(
+    const std::array<wmtk::Image, 3>& displaced,
+    const std::array<wmtk::Image, 3>& normals)
+{
+    // Compute surface normal a ru x rv where ru and rv are the partial derivatives obtained via
+    // bicubic interpolation. Since we have non-regular points where the derivatives vanish, we
+    // weight in the baked normals from the input coarse mesh. We use an exponential decay formula
+    // to favor the normal calculated via derivatives.
+
+    using DScalar = DScalar2<double, Eigen::Vector2d, Eigen::Matrix2d>;
+
+    std::array<wmtk::Image, 3> adjusted_normals = normals;
+
+    auto w = displaced[0].width();
+    auto h = displaced[0].height();
+
+    // First pass, compute ru x rv
+    tbb::parallel_for(0, h, [&](int y) {
+        DScalar::setVariableCount(2);
+        for (int x = 0; x < w; ++x) {
+            DScalar u(0, (static_cast<float>(x) + 0.5f) / w);
+            DScalar v(1, (static_cast<float>(y) + 0.5f) / h);
+            auto p = internal::sample_bicubic(displaced, u, v);
+            Eigen::Vector3d ru;
+            Eigen::Vector3d rv;
+            for (size_t k = 0; k < 3; ++k) {
+                ru[k] = p[k].getGradient()[0];
+                rv[k] = p[k].getGradient()[1];
+            }
+            Eigen::Vector3d n = ru.cross(rv);
+            for (size_t k = 0; k < 3; ++k) {
+                adjusted_normals[k].set(y, x, n[k]);
+            }
+        }
+    });
+
+    // Second pass, compute |ru x rv| and determine average area
+    wmtk::Image area(w, h);
+    tbb::parallel_for(0, h, [&](int y) {
+        for (int x = 0; x < w; ++x) {
+            area.set(y, x, internal::fetch_texels(adjusted_normals, x, y).norm());
+        }
+    });
+    const float lambda = std::log(2.0) / 1e-2 * area.get_raw_image().mean();
+
+    // Third pass, adjust and normalize
+    // tbb::parallel_for(0, h, [&](int y) {
+    //     for (int x = 0; x < w; ++x) {
+    //         const float w = std::exp(-lambda * internal::fetch_texel(area, x, y));
+    //         Eigen::Vector3f nadj = internal::fetch_texels(adjusted_normals, x, y);
+    //         Eigen::Vector3f nref =
+    //             2.f * internal::fetch_texels(normals, x, y) - Eigen::Vector3f::Ones();
+    //         Eigen::Vector3f n = ((1.f - w) * nadj + w * nref).stableNormalized();
+    //         for (size_t k = 0; k < 3; ++k) {
+    //             adjusted_normals[k].set(y, x, adj[k]);
+    //         }
+    //     }
+    // });
+
+    return adjusted_normals;
 }
 
 } // namespace
@@ -272,9 +369,11 @@ QuadricIntegral::QuadricIntegral(QuadricIntegral&&) = default;
 QuadricIntegral& QuadricIntegral::operator=(QuadricIntegral&&) = default;
 
 QuadricIntegral::QuadricIntegral(
-    const std::array<wmtk::Image, 3>& displaced_positions,
+    std::array<wmtk::Image, 3> displaced_positions,
+    const std::array<wmtk::Image, 3>& normals,
     QuadricType quadric_type)
     : m_cache(lagrange::make_value_ptr<Cache>())
+    , m_displaced(std::move(displaced_positions))
 {
     // Default option for quadric integrator
     m_sampling_method = SamplingMethod::Bilinear;
@@ -284,30 +383,50 @@ QuadricIntegral::QuadricIntegral(
     const double sigma_q = 1e-4;
 
     // Relative uncertainty on normal directions
-    const double sigma_n = 0.001;
+    const double sigma_n = 1e-3;
 
-    auto w = displaced_positions[0].width();
-    auto h = displaced_positions[0].height();
+    auto w = m_displaced[0].width();
+    auto h = m_displaced[0].height();
     for (auto& img : m_quadrics) {
         img = wmtk::Image(w, h);
     }
 
-    tbb::parallel_for(0, w, [&](int x) {
-        for (int y = 0; y < h; ++y) {
-            auto stencil = adjusted_stencil(get_stencil(displaced_positions, x, y));
+    auto adjusted_normals = compute_adjusted_normals(m_displaced, normals);
+
+    // std::ofstream out("points.csv");
+    // out << "x,y,z,nx,ny,nz" << std::endl;
+    // for (int y = 0; y < h; ++y) {
+    //     for (int x = 0; x < w; ++x) {
+    //         auto p = internal::fetch_texels(m_displaced, x, y);
+    //         auto n = internal::fetch_texels(adjusted_normals, x, y);
+    //         out << p.x() << ", " << p.y() << ", " << p.z() << ", " << n.x() << ", " << n.y() <<
+    //         ", "
+    //             << n.z() << std::endl;
+    //     }
+    // }
+
+    tbb::parallel_for(0, h, [&](int y) {
+        for (int x = 0; x < w; ++x) {
+            auto stencil = adjusted_stencil(get_stencil(m_displaced, x, y));
+            auto normal = internal::fetch_texels(adjusted_normals, x, y);
             switch (quadric_type) {
             case QuadricType::Point: {
-                auto quadric = compute_pixel_point_quadric(stencil);
+                auto quadric = normal.norm() * compute_pixel_point_quadric(stencil);
                 set_coefficients_from_quadric(m_quadrics, x, y, quadric);
                 break;
             }
             case QuadricType::Plane: {
-                auto quadric = compute_pixel_plane_quadric(stencil, sigma_q, sigma_n);
+                auto quadric = compute_pixel_plane_quadric(stencil, normal, sigma_q, sigma_n);
                 set_coefficients_from_quadric(m_quadrics, x, y, quadric);
                 break;
             }
             case QuadricType::Triangle: {
                 auto quadric = compute_pixel_triangle_quadric(stencil, sigma_q);
+                set_coefficients_from_quadric(m_quadrics, x, y, quadric);
+                break;
+            }
+            case QuadricType::Normal: {
+                auto quadric = compute_pixel_normal_quadric(normal);
                 set_coefficients_from_quadric(m_quadrics, x, y, quadric);
                 break;
             }
@@ -331,13 +450,22 @@ void QuadricIntegral::get_quadric_per_triangle_internal(
         triangle.row(0) << input_triangle[0], input_triangle[1];
         triangle.row(1) << input_triangle[2], input_triangle[3];
         triangle.row(2) << input_triangle[4], input_triangle[5];
-        auto sampling_func = [&](float u, float v) -> Eigen::Matrix<float, 10, 1> {
+        auto sampling_quadrics = [&](float u, float v) -> Eigen::Matrix<float, 10, 1> {
             if constexpr (Sampling == SamplingMethod::Bicubic) {
                 return internal::sample_bicubic(m_quadrics, u, v);
             } else if constexpr (Sampling == SamplingMethod::Nearest) {
                 return internal::sample_nearest(m_quadrics, u, v);
             } else if constexpr (Sampling == SamplingMethod::Bilinear) {
                 return internal::sample_bilinear(m_quadrics, u, v);
+            }
+        };
+        auto sampling_displaced = [&](float u, float v) -> Eigen::Matrix<float, 3, 1> {
+            if constexpr (Sampling == SamplingMethod::Bicubic) {
+                return internal::sample_bicubic(m_displaced, u, v);
+            } else if constexpr (Sampling == SamplingMethod::Nearest) {
+                return internal::sample_nearest(m_displaced, u, v);
+            } else if constexpr (Sampling == SamplingMethod::Bilinear) {
+                return internal::sample_bilinear(m_displaced, u, v);
             }
         };
 
@@ -347,14 +475,16 @@ void QuadricIntegral::get_quadric_per_triangle_internal(
                 triangle,
                 m_cache->quadrature_cache,
                 order,
-                sampling_func);
+                sampling_quadrics,
+                sampling_displaced);
         } else {
             output_quadrics[i] = get_quadric_per_triangle_adaptive<false>(
                 m_quadrics,
                 triangle,
                 m_cache->quadrature_cache,
                 order,
-                sampling_func);
+                sampling_quadrics,
+                sampling_displaced);
         }
     });
 }

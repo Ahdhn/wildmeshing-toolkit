@@ -355,6 +355,7 @@ void QuadricEnergy::eval(State& state, DofsToPositions& dof_to_positions) const
     DScalar energy = p.transpose() * q.A().cast<DScalar>() * p -
                      DScalar(2.0) * p.dot(q.b().cast<DScalar>()) + DScalar(q.c);
 
+    /*
     DScalar v2u = DScalar(state.two_opposite_vertices(0, 0));
     DScalar v2v = DScalar(state.two_opposite_vertices(0, 1));
     Eigen::Matrix<DScalar, 3, 1> v2 = m_displ->get(v2u, v2v);
@@ -380,6 +381,7 @@ void QuadricEnergy::eval(State& state, DofsToPositions& dof_to_positions) const
         // wmtk::logger().info("----current barrier energy {}", barrier_energy.getValue());
         energy += barrier_energy;
     }
+    */
 
     state.value = energy.getValue();
     state.gradient = energy.getGradient();

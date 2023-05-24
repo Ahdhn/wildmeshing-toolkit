@@ -369,7 +369,7 @@ void adaptive_tessellation::AdaptiveTessellation::smooth_all_vertices()
     }
     if (auto quadric_energy = dynamic_cast<QuadricEnergy*>(mesh_parameters.m_energy.get());
         quadric_energy) {
-        throw std::runtime_error("quadric energy is not supported");
+        // throw std::runtime_error("quadric energy is not supported");
         prepare_quadrics(*quadric_energy);
         wmtk::logger().info("!!!!!!! using quadric");
     }

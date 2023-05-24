@@ -40,24 +40,29 @@ auto split_quadrics_renew = [](auto& m, auto op, auto& tris) {
 double AdaptiveTessellation::get_quadrics_area_accuracy_error_for_split(
     const Tuple& edge_tuple) const
 {
-    double energy = get_one_ring_quadrics_error_for_vertex(edge_tuple);
-    energy += get_one_ring_quadrics_error_for_vertex(edge_tuple.switch_vertex(*this));
-    // energy +=
-    //     get_one_ring_quadrics_error_for_vertex(edge_tuple.switch_edge(*this).switch_vertex(*this));
-    if (edge_tuple.switch_face(*this).has_value()) {
-        // energy += get_one_ring_quadrics_error_for_vertex(
-        //     edge_tuple.switch_face(*this).value().switch_edge(*this).switch_vertex(*this));
-    } else {
-        if (is_seam_edge(edge_tuple)) {
+    return get_two_faces_quadrics_error_for_edge(edge_tuple);
+
+    if (0) {
+        double energy = get_one_ring_quadrics_error_for_vertex(edge_tuple);
+        energy += get_one_ring_quadrics_error_for_vertex(edge_tuple.switch_vertex(*this));
+        // energy +=
+        //     get_one_ring_quadrics_error_for_vertex(edge_tuple.switch_edge(*this).switch_vertex(*this));
+        if (edge_tuple.switch_face(*this).has_value()) {
             // energy += get_one_ring_quadrics_error_for_vertex(
-            //     get_oriented_mirror_edge(edge_tuple).switch_edge(*this).switch_vertex(*this));
-            energy += get_one_ring_quadrics_error_for_vertex(
-                get_oriented_mirror_edge(edge_tuple).switch_vertex(*this));
-            energy += get_one_ring_quadrics_error_for_vertex(get_oriented_mirror_edge(edge_tuple));
-        } // else
-        // energy *= 2;
+            //     edge_tuple.switch_face(*this).value().switch_edge(*this).switch_vertex(*this));
+        } else {
+            if (is_seam_edge(edge_tuple)) {
+                // energy += get_one_ring_quadrics_error_for_vertex(
+                //     get_oriented_mirror_edge(edge_tuple).switch_edge(*this).switch_vertex(*this));
+                energy += get_one_ring_quadrics_error_for_vertex(
+                    get_oriented_mirror_edge(edge_tuple).switch_vertex(*this));
+                energy +=
+                    get_one_ring_quadrics_error_for_vertex(get_oriented_mirror_edge(edge_tuple));
+            } // else
+            // energy *= 2;
+        }
+        return energy;
     }
-    return energy;
 }
 
 template <typename Executor>
@@ -246,13 +251,13 @@ bool AdaptiveTessellationPairedSplitEdgeOperation::before(AdaptiveTessellation& 
     assert(m.is_seam_edge(t) == mirror_edge_tuple.has_value());
     bool split_mirror_edge_success =
         m.is_seam_edge(t) ? mirror_split_edge.before(m, mirror_edge_tuple.value()) : true;
-    if (!m.mesh_parameters.m_do_not_output) {
+    // if (!m.mesh_parameters.m_do_not_output) {
         // m.write_vtk(m.mesh_parameters.m_output_folder + fmt::format("/split_{:04d}.vtu", cnt));
         // m.write_perface_vtk(
         //     m.mesh_parameters.m_output_folder + fmt::format("/split_{:04d}_face.vtu", cnt));
-#if 0
+#if 1
          int cnt = g_cnt++;
-         if (cnt % 1000 == 0) {
+         if (cnt % 5000 == 0) {
              m.write_obj_displaced(
                 m.mesh_parameters.m_output_folder + fmt::format("/split_{:04d}.obj", cnt));
             m.write_hdf_displaced_uv(
@@ -260,7 +265,7 @@ bool AdaptiveTessellationPairedSplitEdgeOperation::before(AdaptiveTessellation& 
         }
 #endif
         // m.write_obj(m.mesh_parameters.m_output_folder + fmt::format("/split_{:04d}_2d.obj", cnt));
-    }
+    // }
     assert(
         (paired_op_cache.local().before_sibling_edges.size() == 3 ||
          paired_op_cache.local().before_sibling_edges.size() == 6));
@@ -561,7 +566,7 @@ void AdaptiveTessellation::split_all_edges()
                 return m.get_cached_area_accuracy_error_per_edge(e) * m.get_length2d(e);
             } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 // error is not scaled by 2d edge length
-                return m.get_quadrics_area_accuracy_error_for_split(e) * m.get_length2d(e);
+                return m.get_quadrics_area_accuracy_error_for_split(e) * m.get_length3d(e);
             } else
                 return m.mesh_parameters.m_get_length(e);
         };
@@ -576,7 +581,7 @@ void AdaptiveTessellation::split_all_edges()
                 total_error = unscaled_total_error * m.get_length2d(tup);
             } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 unscaled_total_error = m.get_quadrics_area_accuracy_error_for_split(tup);
-                total_error = unscaled_total_error * m.get_length2d(tup);
+                total_error = unscaled_total_error * m.get_length3d(tup);
             } else {
                 total_error = m.mesh_parameters.m_get_length(tup);
                 unscaled_total_error = total_error;

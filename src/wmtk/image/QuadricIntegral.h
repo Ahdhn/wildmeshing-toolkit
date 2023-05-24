@@ -17,6 +17,7 @@ class QuadricIntegral : public IntegralBase
 public:
     enum class QuadricType {
         Point,
+        Normal,
         Plane,
         Triangle,
     };
@@ -29,7 +30,8 @@ public:
     /// @param[in]  quadric_type         Quadric type to use.
     ///
     QuadricIntegral(
-        const std::array<wmtk::Image, 3>& displaced_positions,
+        std::array<wmtk::Image, 3> displaced_positions,
+        const std::array<wmtk::Image, 3>& normals,
         QuadricType quadric_type);
 
     QuadricIntegral();
@@ -67,11 +69,14 @@ protected:
 protected:
     struct Cache;
 
-    // Quadrics coefficients
-    std::array<wmtk::Image, 10> m_quadrics;
-
     // Hidden cache data
     lagrange::value_ptr<Cache> m_cache;
+
+    // Displacement
+    std::array<wmtk::Image, 3> m_displaced;
+
+    // Quadrics coefficients
+    std::array<wmtk::Image, 10> m_quadrics;
 };
 
 } // namespace wmtk

@@ -123,6 +123,10 @@ void AdaptiveTessellation::mesh_preprocessing(
     mesh_parameters.m_scale = max_comp;
     mesh_parameters.m_offset = scene_offset;
 
+    // mesh_parameters.m_scale = 39.47416;
+    // mesh_parameters.m_offset << 19.73708, 19.73708, 19.73708;
+    logger().info("using scale {} offset {}", mesh_parameters.m_scale, mesh_parameters.m_offset);
+
     // cache the initial accuracy error per triangle
     std::array<wmtk::Image, 3> displaced = wmtk::combine_position_normal_texture(
         mesh_parameters.m_scale,
@@ -131,11 +135,13 @@ void AdaptiveTessellation::mesh_preprocessing(
         normal_image_path,
         height_image_path);
 
-    m_quadric_integral =
-        wmtk::QuadricIntegral(displaced, wmtk::QuadricIntegral::QuadricType::Point);
+    m_quadric_integral = wmtk::QuadricIntegral(
+        displaced,
+        load_rgb_image(normal_image_path),
+        wmtk::QuadricIntegral::QuadricType::Point);
     m_texture_integral = wmtk::TextureIntegral(std::move(displaced));
     m_texture_integral.set_integration_method(
-        wmtk::IntegralBase::IntegrationMethod::Exact); // Adaptive or Exact
+        wmtk::IntegralBase::IntegrationMethod::Adaptive); // Adaptive or Exact
 }
 
 void AdaptiveTessellation::prepare_distance_quadrature_cached_energy()
@@ -534,7 +540,7 @@ void AdaptiveTessellation::set_faces_quadrics(
     const std::vector<TriMesh::Tuple>& tris,
     const std::vector<wmtk::Quadric<double>>& compressed_quadrics)
 {
-    throw std::runtime_error("set face quadrics do not use");
+    // throw std::runtime_error("set face quadrics do not use");
     // update the face_attrs with modified tris error
     for (int i = 0; i < tris.size(); i++) {
         face_attrs[tris[i].fid(*this)].accuracy_measure.quadric = compressed_quadrics[i];
@@ -1062,11 +1068,11 @@ std::tuple<double, double, double> AdaptiveTessellation::get_projected_relative_
 
 double AdaptiveTessellation::get_one_ring_quadrics_error_for_vertex(const Tuple& v) const
 {
-    throw std::runtime_error("get quadrics error for vertex do not use");
+    // throw std::runtime_error("get quadrics error for vertex do not use");
     double ret = 0.0;
     wmtk::Quadric<double> q;
     for (const Tuple& tri : get_one_ring_tris_for_vertex(v)) {
-        // q += get_face_attrs(tri).accuracy_measure.quadric;
+        q += get_face_attrs(tri).accuracy_measure.quadric;
     }
     auto v_pos = vertex_attrs[v.vid(*this)].pos;
     Eigen::Matrix<double, 3, 1> v_world_pos =
@@ -1077,76 +1083,94 @@ double AdaptiveTessellation::get_one_ring_quadrics_error_for_vertex(const Tuple&
 
 double AdaptiveTessellation::get_quadric_error_for_face(const Tuple& f) const
 {
-    throw std::runtime_error("get quadrics erorr for face do not use");
-    wmtk::Quadric<double> q;
+    // throw std::runtime_error("get quadrics erorr for face do not use");
+    std::array<wmtk::Quadric<double>, 2> q;
     // q += get_face_attrs(f).accuracy_measure.quadric;
 
-    Eigen::Matrix<double, 3, 2, Eigen::RowMajor> triangle_uv;
+    Eigen::Matrix<double, 4, 2, Eigen::RowMajor> triangle_uv;
     triangle_uv.row(0) = vertex_attrs[f.vid(*this)].pos.transpose();
     triangle_uv.row(1) = vertex_attrs[f.switch_vertex(*this).vid(*this)].pos.transpose();
     triangle_uv.row(2) =
         vertex_attrs[f.switch_edge(*this).switch_vertex(*this).vid(*this)].pos.transpose();
+    triangle_uv.row(3) = 0.5 * (triangle_uv.row(0) + triangle_uv.row(1));
 
-    auto get = [&](auto uv) -> Eigen::Matrix<double, 1, 3> {
-        return mesh_parameters.m_displacement->get(uv(0), uv(1)).transpose();
+    auto get = [&](auto uv) -> Eigen::Matrix<double, 3, 1> {
+        return mesh_parameters.m_displacement->get(uv(0), uv(1));
     };
 
-    Eigen::Matrix3d triangle_3d;
-    triangle_3d.row(0) = get(triangle_uv.row(0));
-    triangle_3d.row(1) = get(triangle_uv.row(1));
-    triangle_3d.row(2) = get(triangle_uv.row(2));
+    Eigen::Matrix<double, 3, 4> triangle_3d;
+    triangle_3d.col(0) = get(triangle_uv.row(0));
+    triangle_3d.col(1) = get(triangle_uv.row(1));
+    triangle_3d.col(2) = get(triangle_uv.row(2));
+    triangle_3d.col(3) = get(triangle_uv.row(3));
+
+    // m_quadric_integral.get_quadric_per_triangle(
+    //     2,
+    //     [&](int f) -> std::array<float, 6> {
+    //         // Get triangle uv positions
+    //         if (f == 0) {
+    //             return {
+    //                 static_cast<float>(triangle_uv(0, 0)),
+    //                 static_cast<float>(triangle_uv(0, 1)),
+    //                 static_cast<float>(triangle_uv(3, 0)),
+    //                 static_cast<float>(triangle_uv(3, 1)),
+    //                 static_cast<float>(triangle_uv(2, 0)),
+    //                 static_cast<float>(triangle_uv(2, 1))};
+    //         } else {
+    //             return {
+    //                 static_cast<float>(triangle_uv(3, 0)),
+    //                 static_cast<float>(triangle_uv(3, 1)),
+    //                 static_cast<float>(triangle_uv(1, 0)),
+    //                 static_cast<float>(triangle_uv(1, 1)),
+    //                 static_cast<float>(triangle_uv(2, 0)),
+    //                 static_cast<float>(triangle_uv(2, 1))};
+    //         }
+    //     },
+    //     q);
 
     if (0) {
         // Quadric integrated over the face
-        auto triangle_area_2d = [](auto a, auto b, auto c) {
-            return ((a[0] - b[0]) * (a[1] - c[1]) - (a[0] - c[0]) * (a[1] - b[1])) / 2;
-        };
-
-        double uv_area =
-            triangle_area_2d(triangle_uv.row(0), triangle_uv.row(1), triangle_uv.row(2));
-        if (uv_area < std::numeric_limits<double>::denorm_min()) {
-            return 0;
-        }
-        q /= uv_area;
-
-        const double u1 = triangle_uv(0, 0);
-        const double v1 = triangle_uv(0, 1);
-        const double u2 = triangle_uv(1, 0);
-        const double v2 = triangle_uv(1, 1);
-        const double u3 = triangle_uv(2, 0);
-        const double v3 = triangle_uv(2, 1);
-        const double denom = ((v2 - v3) * (u1 - u3) + (u3 - u2) * (v1 - v3));
-        if (denom < std::numeric_limits<double>::denorm_min()) {
-            // Degenerate triangle
-            return 0.;
-        }
-
+        const auto& q0 = get_face_attrs(f).accuracy_measure.quadric;
         auto get_p_interpolated = [&](double u, double v) -> Eigen::Matrix<double, 3, 1> {
-            auto lambda1 = ((v2 - v3) * (u - u3) + (u3 - u2) * (v - v3)) / denom;
-            auto lambda2 = ((v3 - v1) * (u - u3) + (u1 - u3) * (v - v3)) / denom;
-            auto lambda3 = 1 - lambda1 - lambda2;
-            return (lambda1 * triangle_3d.row(0) + lambda2 * triangle_3d.row(1) +
-                    lambda3 * triangle_3d.row(2))
-                .transpose();
+            return u * (triangle_3d.col(1) - triangle_3d.col(0)) +
+                   v * (triangle_3d.col(2) - triangle_3d.col(0));
         };
 
         const int order = 2;
         Quadrature quadr;
-        TriangleQuadrature::transformed_triangle_quadrature(order, triangle_uv, quadr);
+        TriangleQuadrature::reference_triangle_quadrature(order, quadr);
 
         double ret = 0;
         for (size_t i = 0; i < quadr.size(); ++i) {
             double u = quadr.points()(i, 0);
             double v = quadr.points()(i, 1);
             Eigen::Matrix<double, 3, 1> p = get_p_interpolated(u, v);
-            ret += q(p);
+            ret += q0(p) * quadr.weights()(i);
         }
+        double jac = (triangle_3d.col(1) - triangle_3d.col(0))
+                         .cross(triangle_3d.col(2) - triangle_3d.col(0))
+                         .norm();
+        return ret * jac;
     } else {
         // Quadric evaluated at the vertices
+        const auto& q0 = get_face_attrs(f).accuracy_measure.quadric;
+        Eigen::Vector3d n = Eigen::Vector3d::Zero();
+        n += triangle_3d.col(0).cross(triangle_3d.col(1));
+        n += triangle_3d.col(1).cross(triangle_3d.col(2));
+        n += triangle_3d.col(2).cross(triangle_3d.col(0));
         double ret = 0;
-        ret += q(triangle_3d.row(0).transpose());
-        ret += q(triangle_3d.row(1).transpose());
-        ret += q(triangle_3d.row(2).transpose());
+        // ret += q0(n);
+        ret += q0(triangle_3d.col(0));
+        ret += q0(triangle_3d.col(1));
+        ret += q0(triangle_3d.col(2));
+        ret += q0((triangle_3d.col(0) + triangle_3d.col(1) + triangle_3d.col(2))/3);
+        // ret -= q[0](triangle_3d.col(0));
+        // ret -= q[0](triangle_3d.col(3));
+        // ret -= q[0](triangle_3d.col(2));
+        // ret -= q[1](triangle_3d.col(3));
+        // ret -= q[1](triangle_3d.col(1));
+        // ret -= q[1](triangle_3d.col(2));
+        // ret = q0((triangle_3d.col(0) + triangle_3d.col(1)) / 2.0);
         return ret;
     }
 }
@@ -1167,7 +1191,8 @@ double AdaptiveTessellation::get_two_faces_quadrics_error_for_edge(const Tuple& 
         ret += get_quadric_error_for_face(get_oriented_mirror_edge(e0));
     }
 
-    throw std::runtime_error("two faces quadrics error Not fully implemented, should not be used");
+    // throw std::runtime_error("two faces quadrics error Not fully implemented, should not be
+    // used");
 
     return ret;
 }
