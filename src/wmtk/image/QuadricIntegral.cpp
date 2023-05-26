@@ -291,6 +291,13 @@ Quadric<double> get_quadric_per_triangle_adaptive(
     Eigen::Vector3d p2 = get_displacement(u2, v2).template cast<double>();
     Eigen::Vector3d p3 = get_displacement(u3, v3).template cast<double>();
     const double area_3d = lagrange::triangle_area_3d<double>(p1, p2, p3);
+    if (q.A().isZero()) {
+        logger().info(
+            "Zero quadric detected for triangle {} / {} / {}",
+            triangle_uv.row(0),
+            triangle_uv.row(1),
+            triangle_uv.row(2));
+    }
     return q; // * area_3d / area_2d;
 }
 

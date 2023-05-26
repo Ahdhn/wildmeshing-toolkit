@@ -722,6 +722,8 @@ void AdaptiveTessellation::write_hdf_displaced_uv(const std::filesystem::path& p
     const auto faces = get_faces();
 
     if (1) {
+        prepare_quadrics();
+
         Eigen::MatrixXd v_quadric_error;
         v_quadric_error.resize(V.rows(), 1);
         for (const Tuple& t : get_vertices()) {

@@ -257,7 +257,7 @@ bool AdaptiveTessellationPairedSplitEdgeOperation::before(AdaptiveTessellation& 
         //     m.mesh_parameters.m_output_folder + fmt::format("/split_{:04d}_face.vtu", cnt));
 #if 1
          int cnt = g_cnt++;
-         if (cnt % 5000 == 0) {
+         if (cnt % 10000 == 0) {
              m.write_obj_displaced(
                 m.mesh_parameters.m_output_folder + fmt::format("/split_{:04d}.obj", cnt));
             m.write_hdf_displaced_uv(
@@ -558,7 +558,7 @@ void AdaptiveTessellation::split_all_edges()
     wmtk::logger().info("size for edges to be split is {}", collect_all_ops.size());
     auto setup_and_execute = [&](auto executor) {
         addPairedCustomOps(executor);
-        executor.renew_neighbor_tuples = split_renew;
+        executor.renew_neighbor_tuples = split_renew; //split_quadrics_renew;
         executor.priority = [&](auto& m, auto _, auto& e) {
             double priority = 0.;
             if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::AREA_ACCURACY) {
@@ -566,7 +566,7 @@ void AdaptiveTessellation::split_all_edges()
                 return m.get_cached_area_accuracy_error_per_edge(e) * m.get_length2d(e);
             } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 // error is not scaled by 2d edge length
-                return m.get_quadrics_area_accuracy_error_for_split(e) * m.get_length3d(e);
+                return m.get_quadrics_area_accuracy_error_for_split(e); // * m.get_length3d(e);
             } else
                 return m.mesh_parameters.m_get_length(e);
         };
@@ -581,7 +581,7 @@ void AdaptiveTessellation::split_all_edges()
                 total_error = unscaled_total_error * m.get_length2d(tup);
             } else if (m.mesh_parameters.m_edge_length_type == EDGE_LEN_TYPE::TRI_QUADRICS) {
                 unscaled_total_error = m.get_quadrics_area_accuracy_error_for_split(tup);
-                total_error = unscaled_total_error * m.get_length3d(tup);
+                total_error = unscaled_total_error; // * m.get_length3d(tup);
             } else {
                 total_error = m.mesh_parameters.m_get_length(tup);
                 unscaled_total_error = total_error;

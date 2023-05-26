@@ -209,9 +209,9 @@ int main(int argc, char** argv)
     //     ldc.log_json(m, "before_remeshing");
     // }
 
-    m.write_hdf_displaced_uv(output_folder / "before.hdf");
+    // m.write_hdf_displaced_uv(output_folder / "before.hdf");
 
-    if (0) {
+    if (1) {
         LoggerDataCollector ldc;
         ldc.start_timer();
         m.split_all_edges();
