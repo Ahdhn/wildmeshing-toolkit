@@ -75,12 +75,32 @@ int main(int argc, char** argv)
     DelaunayEdgeFlip def_mesh(v, tri, num_threads);
 
     igl::Timer timer;
+//    for(int i = 0; i < 8; i++) {
+//        wmtk::logger().info("*** Delaunay Flip Iteration: {}", i);
+//
+//        timer.start();
+//        def_mesh.swap_all_edges();
+//        timer.stop();
+//
+//        wmtk::logger().info(
+//            "***** Delaunay Flip Time *****: {} ms\n any_edges_flipped = {}\n",
+//            timer.getElapsedTimeInMilliSec(), def_mesh.any_edges_flipped);
+//    }
+
+    int iteration = 0;
     timer.start();
+    do {
+        wmtk::logger().info("*** Delaunay Flip Iteration: {}", iteration++);
 
-    def_mesh.swap_all_edges();
 
+        def_mesh.swap_all_edges();
+
+
+    } while(def_mesh.any_edges_flipped == true);
     timer.stop();
-    wmtk::logger().info("***** Delaunay Flip Time *****: {} ms", timer.getElapsedTimeInMilliSec());
+    wmtk::logger().info(
+        "***** Delaunay Flip Time *****: {} ms\n any_edges_flipped = {}\n",
+        timer.getElapsedTimeInMilliSec(), def_mesh.any_edges_flipped);
 
     def_mesh.consolidate_mesh();
     def_mesh.write_triangle_mesh(output_mesh_name);

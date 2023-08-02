@@ -12,6 +12,8 @@ DelaunayEdgeFlip::DelaunayEdgeFlip(
     const std::vector<std::array<size_t, 3>>& tris,
     int num_threads)
 {
+    any_edges_flipped = false;
+
     NUM_THREADS = num_threads;
     p_vertex_attrs = &vertex_attrs;
 
@@ -50,6 +52,9 @@ auto edge_locker = [](auto& m, const auto& e, int task_id) {
 void DelaunayEdgeFlip::swap_all_edges()
 {
     wmtk::logger().info("***** DelaunayEdgeFlip Collecting edges to swap *****");
+
+    // reset our flag for edge flip detection
+    any_edges_flipped = false;
 
     igl::Timer timer;
     timer.start();
@@ -234,5 +239,9 @@ bool DelaunayEdgeFlip::swap_edge_after(const TriMesh::Tuple& t)
     }
 
 //    wmtk::logger().info("returning true 1");
+
+    // take note that at least one edge has flipped
+    any_edges_flipped = true;
+
     return true;
 }

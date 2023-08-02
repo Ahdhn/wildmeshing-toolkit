@@ -33,6 +33,11 @@ class DelaunayEdgeFlip : public wmtk::TriMesh
 {
 public:
 
+    // Flag to determine whether or not to continue
+    // edge flips in subsequent iterations. We want to stop
+    // when no more edges can be flipped.
+    bool any_edges_flipped;
+
     using VertAttCol = wmtk::AttributeCollection<VertexAttributes>;
     VertAttCol vertex_attrs;
 
