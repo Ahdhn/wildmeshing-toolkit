@@ -40,6 +40,7 @@ int main(int argc, char** argv)
 
     CLI11_PARSE(app, argc, argv);
 
+    wmtk::logger().set_level(spdlog::level::off);
     wmtk::logger().info("def on {}", input_mesh_name);
     wmtk::logger().info("def output to {}", output_mesh_name);
 
@@ -100,7 +101,10 @@ int main(int argc, char** argv)
     timer.stop();
     wmtk::logger().info(
         "***** Delaunay Flip Time *****: {} ms\n any_edges_flipped = {}\n",
-        timer.getElapsedTimeInMilliSec(), def_mesh.any_edges_flipped);
+        timer.getElapsedTimeInMilliSec(), def_mesh.any_edges_flipped);  
+    std::cout << "***** Delaunay Flip Time *****: " << timer.getElapsedTimeInMilliSec()
+              << "ms\n any_edges_flipped = " << def_mesh.any_edges_flipped;
+              
 
     def_mesh.consolidate_mesh();
     def_mesh.write_triangle_mesh(output_mesh_name);

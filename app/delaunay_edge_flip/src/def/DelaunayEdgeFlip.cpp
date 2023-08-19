@@ -51,13 +51,13 @@ auto edge_locker = [](auto& m, const auto& e, int task_id) {
 
 void DelaunayEdgeFlip::swap_all_edges()
 {
-    wmtk::logger().info("***** DelaunayEdgeFlip Collecting edges to swap *****");
+    //wmtk::logger().info("***** DelaunayEdgeFlip Collecting edges to swap *****");
 
     // reset our flag for edge flip detection
     any_edges_flipped = false;
 
-    igl::Timer timer;
-    timer.start();
+    //igl::Timer timer;
+    //timer.start();
 
     // vector of pair("edge_swap", Tuple)
     auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
@@ -74,8 +74,8 @@ void DelaunayEdgeFlip::swap_all_edges()
         collect_all_ops.emplace_back("edge_swap", t);
     }
 
-    wmtk::logger().info("***** swap get edges time *****: {} ms", timer.getElapsedTimeInMilliSec());
-    wmtk::logger().info("DelaunayEdgeFlip: size for edges to swap is {}", collect_all_ops.size());
+    //wmtk::logger().info("***** swap get edges time *****: {} ms", timer.getElapsedTimeInMilliSec());
+    //wmtk::logger().info("DelaunayEdgeFlip: size for edges to swap is {}", collect_all_ops.size());
 
     // Prepare the execution environment
 //    auto renew = [](auto& m, auto op, auto& tris) {
@@ -100,12 +100,12 @@ void DelaunayEdgeFlip::swap_all_edges()
     };
 
     if(NUM_THREADS > 1) {
-        wmtk::logger().info("DelaunayEdgeFlip NUM_THREADS kPartition {}", NUM_THREADS);
+        //wmtk::logger().info("DelaunayEdgeFlip NUM_THREADS kPartition {}", NUM_THREADS);
         auto executor = wmtk::ExecutePass<DelaunayEdgeFlip, ExecutionPolicy::kPartition>();
         executor.lock_vertices = edge_locker;
         setup_and_execute(executor);
     } else {
-        wmtk::logger().info("DelaunayEdgeFlip NUM_THREADS kSeq {}", NUM_THREADS);
+        //wmtk::logger().info("DelaunayEdgeFlip NUM_THREADS kSeq {}", NUM_THREADS);
         auto executor = wmtk::ExecutePass<DelaunayEdgeFlip, ExecutionPolicy::kSeq>();
         setup_and_execute(executor);
     }
