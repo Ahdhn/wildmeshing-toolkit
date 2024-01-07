@@ -102,6 +102,7 @@ int main(int argc, char** argv)
         double avg_len = m.average_len_valen()[0];
         double len = diag * len_rel;
         len = (len < avg_len * 5) ? len : avg_len * 5;
+        len = avg_len;
         run_remeshing(input_path, len, output, m, itrs);
     }
 
