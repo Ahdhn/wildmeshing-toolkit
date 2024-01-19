@@ -26,8 +26,7 @@ void run_remeshing(std::string input, double len, std::string output, UniformRem
 {
     auto start = high_resolution_clock::now();
     wmtk::logger().info("target len: {}", len);
-    m.uniform_remeshing(len, itrs);
-    m.consolidate_mesh();
+    m.uniform_remeshing(len, itrs);    
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
 

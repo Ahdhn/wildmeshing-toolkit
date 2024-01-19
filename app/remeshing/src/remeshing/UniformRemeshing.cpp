@@ -325,7 +325,7 @@ double UniformRemeshing::compute_edge_cost_collapse(const TriMesh::Tuple& t, dou
         (vertex_attrs[t.vid(*this)].pos - vertex_attrs[t.switch_vertex(*this).vid(*this)].pos)
             .norm();
     //if (l < (4. / 5.) * L) return ((4. / 5.) * L - l);
-    if (l < (4. / 5.) * L) return 1.0;
+    if (l < (4. / 5.) * L) return 1;
     return -1;
 }
 double UniformRemeshing::compute_edge_cost_split(const TriMesh::Tuple& t, double L) const
@@ -334,7 +334,7 @@ double UniformRemeshing::compute_edge_cost_split(const TriMesh::Tuple& t, double
         (vertex_attrs[t.vid(*this)].pos - vertex_attrs[t.switch_vertex(*this).vid(*this)].pos)
             .norm();
     //if (l > (4. / 3.) * L) return (l - (4. / 3.) * L);
-    if (l > (4. / 3.) * L) return 1.0;
+    if (l > (4. / 3.) * L) return 1;
     return -1;
 }
 
@@ -372,12 +372,12 @@ double UniformRemeshing::compute_vertex_valence(const TriMesh::Tuple& t) const
             (i < 2) ? (double)(valences[i].second - 1 - val) * (valences[i].second - 1 - val)
                     : (double)(valences[i].second + 1 - val) * (valences[i].second + 1 - val);
     }
-    if (cost_before_swap > cost_after_swap) {
-        return 1.0;
-    } else {
-        return -1.0;
-    }
     //return (cost_before_swap - cost_after_swap);
+    if (cost_before_swap > cost_after_swap) {
+        return 1;
+    } else {
+        return -1;
+    }
 }
 
 std::vector<double> UniformRemeshing::average_len_valen()
@@ -427,6 +427,7 @@ bool UniformRemeshing::collapse_remeshing(double L)
     igl::Timer timer;
     timer.start();
     auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
+    size_t vid_threshold = 0;
     auto collect_tuples = tbb::concurrent_vector<Tuple>();
 
     for_each_edge([&](auto& tup) { collect_tuples.emplace_back(tup); });
@@ -437,18 +438,25 @@ bool UniformRemeshing::collapse_remeshing(double L)
         timer.getElapsedTimeInMilliSec());
 
     wmtk::logger().info("size for edges to be collapse is {}", collect_all_ops.size());
+    auto edges2 = tbb::concurrent_vector<std::pair<std::string, TriMesh::Tuple>>();
+
     auto setup_and_execute = [&](auto executor) {
-        executor.renew_neighbor_tuples = renew;
+        vid_threshold = vert_capacity();
+        executor.renew_neighbor_tuples = [&](auto& m, auto op, auto& tris) {            
+            auto edges = m.replace_edges_after_split(tris, vid_threshold);            
+            auto optup = std::vector<std::pair<std::string, TriMesh::Tuple>>();
+            for (auto& e : edges) optup.emplace_back(op, e);
+            return optup;
+        };
         executor.priority = [&](auto& m, auto _, auto& e) {
             return m.compute_edge_cost_collapse(e, L);
         };
         executor.num_threads = NUM_THREADS;
-        // executor.should_renew = [](auto val) { return (val > 0); };
-        executor.should_renew = [](auto val) { return false; };
-        executor.is_weight_up_to_date = [](auto& m, auto& ele) {
-            auto& [val, op, e] = ele;
-            if (val < 0) return false; // priority is negated.
-            return true;
+        executor.should_renew = [](auto val) { return (val > 0); };                
+        executor.is_weight_up_to_date = [&](auto& m, auto& ele) {
+            auto& [val, _, e] = ele;
+            auto val_energy = (m.compute_edge_cost_collapse(e, L));
+            return ((val_energy - val) * (val_energy - val) < 1e-8);
         };
         executor(*this, collect_all_ops);
     };
@@ -475,9 +483,7 @@ bool UniformRemeshing::split_remeshing(double L)
     for_each_edge([&](auto& tup) { collect_tuples.emplace_back(tup); });
     collect_all_ops.reserve(collect_tuples.size());
     for (auto& t : collect_tuples) collect_all_ops.emplace_back("edge_split", t);
-    wmtk::logger().info(
-        "***** split get edges time *****: {} ms",
-        timer.getElapsedTimeInMilliSec());
+    wmtk::logger().info( "***** split get edges time *****: {} ms", timer.getElapsedTimeInMilliSec());
 
     wmtk::logger().info("size for edges to be split is {}", collect_all_ops.size());
     auto edges2 = tbb::concurrent_vector<std::pair<std::string, TriMesh::Tuple>>();
@@ -485,7 +491,7 @@ bool UniformRemeshing::split_remeshing(double L)
         vid_threshold = vert_capacity();
         executor.num_threads = NUM_THREADS;
         executor.renew_neighbor_tuples = [&](auto& m, auto op, auto& tris) {
-            //count_success++;
+            count_success++;
             auto edges = m.replace_edges_after_split(tris, vid_threshold);
             for (auto e2 : m.new_sub_edges_after_split(tris)) edges2.emplace_back(op, e2);
             auto optup = std::vector<std::pair<std::string, TriMesh::Tuple>>();
@@ -495,20 +501,20 @@ bool UniformRemeshing::split_remeshing(double L)
         executor.priority = [&](auto& m, auto _, auto& e) {
             return m.compute_edge_cost_split(e, L);
         };
-        // executor.should_renew = [](auto val) { return (val > 0); };
-        executor.should_renew = [](auto val) { return false; };
-        executor.is_weight_up_to_date = [](auto& m, auto& ele) {
-            auto& [val, op, e] = ele;
-            if (val < 0) return false;
-            return true;
+        executor.should_renew = [](auto val) { return (val > 0); };                
+        executor.is_weight_up_to_date = [&](auto& m, auto& ele) {
+            auto& [val, _, e] = ele;
+            auto val_energy = (m.compute_edge_cost_split(e, L));
+            return ((val_energy - val) * (val_energy - val) < 1e-8);
         };
         // Execute!!
-        // do {
-        //count_success.store(0, std::memory_order_release);
-        executor(*this, collect_all_ops);
-        //collect_all_ops.clear();
-        //for (auto& item : edges2) collect_all_ops.emplace_back(item);
-        //edges2.clear();
+        executor(*this, collect_all_ops);        
+        //do {
+        //    count_success.store(0, std::memory_order_release);
+        //    executor(*this, collect_all_ops);
+        //    collect_all_ops.clear();
+        //    for (auto& item : edges2) collect_all_ops.emplace_back(item);
+        //    edges2.clear();        
         //} while (count_success.load(std::memory_order_acquire) > 0);
     };
 
@@ -552,28 +558,46 @@ bool UniformRemeshing::swap_remeshing()
 {
     igl::Timer timer;
     timer.start();
-    auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
-    wmtk::logger().info("size for edges to swap is {}", collect_all_ops.size());
+    auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();    
     auto collect_tuples = tbb::concurrent_vector<Tuple>();
 
     for_each_edge([&](auto& tup) { collect_tuples.emplace_back(tup); });
     collect_all_ops.reserve(collect_tuples.size());
     for (auto& t : collect_tuples) collect_all_ops.emplace_back("edge_swap", t);
     wmtk::logger().info("***** swap get edges time *****: {} ms", timer.getElapsedTimeInMilliSec());
-
+    wmtk::logger().info("size for edges to swap is {}", collect_all_ops.size());
 
     auto setup_and_execute = [&](auto executor) {
-        executor.renew_neighbor_tuples = renew;
+        executor.renew_neighbor_tuples = [&](auto& m, auto op, auto& tris) {
+            size_t f0 = tris[0].fid(m);
+            size_t f1 = tris[1].fid(m);
+
+            assert(f0 != f1);
+
+            auto edges = m.new_edges_after(tris);
+
+            std::vector<TriMesh::Tuple> new_edges;
+            new_edges.reserve(edges.size());
+            for (auto e : edges) {
+                auto ff0 = e.switch_face(m).value().fid(m);
+                auto ff1 = e.fid(m);
+                assert(ff0 == f0 || ff0 == f1 || ff1 == f0 || ff1 == f1);
+                if ((f0 == ff0 && f1 == ff1) || (f1 == ff0 && f0 == ff1)) continue;
+                new_edges.push_back(e);
+            }            
+            auto optup = std::vector<std::pair<std::string, TriMesh::Tuple>>();
+            for (auto& e : new_edges) optup.emplace_back(op, e);
+            return optup;
+        };
         executor.num_threads = NUM_THREADS;
         executor.priority = [](auto& m, auto op, const Tuple& e) {
             return m.compute_vertex_valence(e);
         };
-        //executor.should_renew = [](auto val) { return (val > 0); };
-        executor.should_renew = [](auto val) { return false; };
+        executor.should_renew = [](auto val) { return (val > 0); };
         executor.is_weight_up_to_date = [](auto& m, auto& ele) {
             auto& [val, _, e] = ele;
             auto val_energy = (m.compute_vertex_valence(e));
-            return (val_energy > 1e-5) && ((val_energy - val) * (val_energy - val) < 1e-8);
+            return ((val_energy - val) * (val_energy - val) < 1e-8);            
         };
         executor(*this, collect_all_ops);
     };
@@ -681,18 +705,15 @@ bool UniformRemeshing::uniform_remeshing(double L, int iterations)
         wmtk::logger().info(
             "--------collapse time-------: {} ms",
             timer.getElapsedTimeInMilliSec());
-
+        
         // swap edges
         timer.start();
         swap_remeshing();
-        wmtk::logger().info("--------swap time-------: {} ms",
-            timer.getElapsedTimeInMilliSec());
-
+        wmtk::logger().info("--------swap time-------: {} ms", timer.getElapsedTimeInMilliSec());
         // smoothing
         timer.start();
         smooth_all_vertices();
-        wmtk::logger().info("--------smooth time-------: {} ms",
-        timer.getElapsedTimeInMilliSec());
+        wmtk::logger().info("--------smooth time-------: {} ms", timer.getElapsedTimeInMilliSec());
 
         partition_mesh_morton();
     }
