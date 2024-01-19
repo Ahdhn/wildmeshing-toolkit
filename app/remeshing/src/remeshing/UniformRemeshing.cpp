@@ -216,6 +216,7 @@ std::vector<TriMesh::Tuple> UniformRemeshing::new_edges_after(
 bool UniformRemeshing::swap_edge_before(const Tuple& t)
 {
     if (!TriMesh::swap_edge_before(t)) return false;
+    if (compute_vertex_valence(t) < 0) return false;
     if (vertex_attrs[t.vid(*this)].freeze && vertex_attrs[t.switch_vertex(*this).vid(*this)].freeze)
         return false;
     return true;
@@ -276,6 +277,9 @@ bool UniformRemeshing::collapse_edge_before(const Tuple& t)
 
 bool UniformRemeshing::collapse_edge_after(const TriMesh::Tuple& t)
 {
+    double l = (position_cache.local().v1p - position_cache.local().v2p).norm();
+    if (l >= (4. / 5.) * target_len) return false;
+
     const Eigen::Vector3d p = (position_cache.local().v1p + position_cache.local().v2p) / 2.0;
     auto vid = t.vid(*this);
     vertex_attrs[vid].pos = p;
@@ -293,7 +297,11 @@ bool UniformRemeshing::split_edge_before(const Tuple& t)
 
 
 bool UniformRemeshing::split_edge_after(const TriMesh::Tuple& t)
-{
+{    
+    double l = (position_cache.local().v1p - position_cache.local().v2p)
+            .norm();    
+    if (l <= (4. / 3.) * target_len) return false;
+
     const Eigen::Vector3d p = (position_cache.local().v1p + position_cache.local().v2p) / 2.0;
     auto vid = t.switch_vertex(*this).vid(*this);
     vertex_attrs[vid].pos = p;
@@ -597,7 +605,7 @@ bool UniformRemeshing::swap_remeshing()
         executor.is_weight_up_to_date = [](auto& m, auto& ele) {
             auto& [val, _, e] = ele;
             auto val_energy = (m.compute_vertex_valence(e));
-            return ((val_energy - val) * (val_energy - val) < 1e-8);            
+            return (val_energy > 0) && ((val_energy - val) * (val_energy - val) < 1e-8);            
         };
         executor(*this, collect_all_ops);
     };
@@ -687,6 +695,7 @@ Eigen::Vector3d UniformRemeshing::tangential_smooth(const Tuple& t)
 
 bool UniformRemeshing::uniform_remeshing(double L, int iterations)
 {
+    target_len = L;
     int cnt = 0;
     wmtk::logger().info("target len is: {}", L);
 

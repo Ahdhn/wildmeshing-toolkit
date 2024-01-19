@@ -39,6 +39,8 @@ public:
 
     using VertAttCol = wmtk::AttributeCollection<VertexAttributes>;
     VertAttCol vertex_attrs;
+    
+    double target_len;
 
     int retry_limit = 10;
     UniformRemeshing(
