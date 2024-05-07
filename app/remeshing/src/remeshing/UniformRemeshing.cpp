@@ -460,7 +460,7 @@ bool UniformRemeshing::collapse_remeshing(double L)
             return m.compute_edge_cost_collapse(e, L);
         };
         executor.num_threads = NUM_THREADS;
-        executor.should_renew = [](auto val) { return (val > 0); };                
+        executor.should_renew = [](auto val) { return false; };
         executor.is_weight_up_to_date = [&](auto& m, auto& ele) {
             auto& [val, _, e] = ele;
             auto val_energy = (m.compute_edge_cost_collapse(e, L));
@@ -509,7 +509,7 @@ bool UniformRemeshing::split_remeshing(double L)
         executor.priority = [&](auto& m, auto _, auto& e) {
             return m.compute_edge_cost_split(e, L);
         };
-        executor.should_renew = [](auto val) { return (val > 0); };                
+        executor.should_renew = [](auto val)  { return false; };  
         executor.is_weight_up_to_date = [&](auto& m, auto& ele) {
             auto& [val, _, e] = ele;
             auto val_energy = (m.compute_edge_cost_split(e, L));
@@ -601,7 +601,7 @@ bool UniformRemeshing::swap_remeshing()
         executor.priority = [](auto& m, auto op, const Tuple& e) {
             return m.compute_vertex_valence(e);
         };
-        executor.should_renew = [](auto val) { return (val > 0); };
+        executor.should_renew = [](auto val) { return false; };
         executor.is_weight_up_to_date = [](auto& m, auto& ele) {
             auto& [val, _, e] = ele;
             auto val_energy = (m.compute_vertex_valence(e));

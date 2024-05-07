@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 
     CLI11_PARSE(app, argc, argv);
 
-    wmtk::logger().set_level(spdlog::level::off);
+    wmtk::logger().set_level(spdlog::level::info);
     wmtk::logger().info("def on {}", input_mesh_name);
     wmtk::logger().info("def output to {}", output_mesh_name);
 

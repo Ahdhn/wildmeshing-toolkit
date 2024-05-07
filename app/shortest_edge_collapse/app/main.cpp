@@ -31,7 +31,13 @@ void run_shortest_collapse(
     wmtk::logger().info("target number of verts: {}", target);
     assert(m.check_mesh_connectivity_validity());
     wmtk::logger().info("mesh is valid");
-    m.collapse_shortest(target);
+    int num_passes = 0;
+    do {
+        num_passes++;
+        m.collapse_shortest(target);        
+    } while (m.get_vertices().size() > target);
+
+
     wmtk::logger().info("collapsed");
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);

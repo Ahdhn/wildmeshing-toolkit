@@ -61,16 +61,8 @@ void DelaunayEdgeFlip::swap_all_edges()
 
     // vector of pair("edge_swap", Tuple)
     auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
-
-    // concurrent vector representing our Tuples (edges to swap)
-    auto collect_tuples = tbb::concurrent_vector<Tuple>();
-
-    // grab all our edges in parallel
-    for_each_edge([&](auto& tup) { collect_tuples.emplace_back(tup); });
-
-    // prepare the operations (e.g., "edge_swap") to perform when we're ready
-    collect_all_ops.reserve(collect_tuples.size());
-    for (auto& t : collect_tuples) {
+    
+    for (auto& t : get_edges()) {
         collect_all_ops.emplace_back("edge_swap", t);
     }
 
@@ -78,17 +70,17 @@ void DelaunayEdgeFlip::swap_all_edges()
     //wmtk::logger().info("DelaunayEdgeFlip: size for edges to swap is {}", collect_all_ops.size());
 
     // Prepare the execution environment
-//    auto renew = [](auto& m, auto op, auto& tris) {
-//        auto edges = m.new_edges_after(tris);
-//        auto optup = std::vector<std::pair<std::string, TriMesh::Tuple>>();
-//        for (auto& e : edges) optup.emplace_back(op, e);
-//        return optup;
-//    };
+    //auto renew = [](auto& m, auto op, auto& tris) {
+    //    auto edges = m.new_edges_after(tris);
+    //    auto optup = std::vector<std::pair<std::string, TriMesh::Tuple>>();
+    //    for (auto& e : edges) optup.emplace_back(op, e);
+    //    return optup;
+    //};
 
     auto setup_and_execute = [&](auto executor) {
         executor.num_threads = NUM_THREADS;
 
-        executor.stopping_criterion_checking_frequency = collect_tuples.size() / 2;
+        executor.stopping_criterion_checking_frequency = get_edges().size() / 2;
 
         // new operations should NOT be added to priority queue
         executor.should_renew = [](auto) { return false; };
