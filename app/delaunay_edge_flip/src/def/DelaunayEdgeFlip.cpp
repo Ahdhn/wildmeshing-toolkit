@@ -33,9 +33,16 @@ DelaunayEdgeFlip::DelaunayEdgeFlip(
         vertex_attrs[i] = {_m_vertex_positions[i], partition_ids[i]};
     }
 
-    for(auto pid : partition_set)
-    {
-        wmtk::logger().info("pid: {}\n", pid);
+    //for(auto pid : partition_set)
+    //{
+    //    wmtk::logger().info("pid: {}\n", pid);
+    //}
+
+    auto edges = get_edges();    
+    collect_all_ops.resize(edges.size());
+
+    for (auto& t : edges) {
+        collect_all_ops.emplace_back("edge_swap", t);
     }
 }
 
@@ -59,13 +66,7 @@ void DelaunayEdgeFlip::swap_all_edges()
     //igl::Timer timer;
     //timer.start();
 
-    // vector of pair("edge_swap", Tuple)
-    auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
-    
-    for (auto& t : get_edges()) {
-        collect_all_ops.emplace_back("edge_swap", t);
-    }
-
+  
     //wmtk::logger().info("***** swap get edges time *****: {} ms", timer.getElapsedTimeInMilliSec());
     //wmtk::logger().info("DelaunayEdgeFlip: size for edges to swap is {}", collect_all_ops.size());
 
@@ -80,7 +81,7 @@ void DelaunayEdgeFlip::swap_all_edges()
     auto setup_and_execute = [&](auto executor) {
         executor.num_threads = NUM_THREADS;
 
-        executor.stopping_criterion_checking_frequency = get_edges().size() / 2;
+        executor.stopping_criterion_checking_frequency = collect_all_ops.size() / 2;
 
         // new operations should NOT be added to priority queue
         executor.should_renew = [](auto) { return false; };

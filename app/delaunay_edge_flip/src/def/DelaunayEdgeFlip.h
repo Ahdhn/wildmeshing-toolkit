@@ -59,6 +59,9 @@ public:
     bool write_triangle_mesh(std::string path);
 
 private:
+    
+    std::vector<std::pair<std::string, Tuple>> collect_all_ops;
+
     // Use to save positions of an edge before
     // the edge is flipped.
     struct PositionInfoCache
