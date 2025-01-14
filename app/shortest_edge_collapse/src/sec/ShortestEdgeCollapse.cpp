@@ -148,8 +148,10 @@ std::vector<TriMesh::Tuple> ShortestEdgeCollapse::new_edges_after(
 bool ShortestEdgeCollapse::collapse_shortest(int target_vert_number)
 {
     size_t initial_size = get_vertices().size();
+    auto edges = get_edges();
     auto collect_all_ops = std::vector<std::pair<std::string, Tuple>>();
-    for (auto& loc : get_edges()) collect_all_ops.emplace_back("edge_collapse", loc);
+    collect_all_ops.reserve(edges.size());
+    for (auto& loc : edges) collect_all_ops.emplace_back("edge_collapse", loc);
 
     auto renew = [](auto& m, auto op, auto& tris) {
         auto edges = m.new_edges_after(tris);
